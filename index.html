@@ -93,7 +93,7 @@
         .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 
-    <!-- LÓGICA (Mantida idêntica à versão anterior) -->
+    <!-- LÓGICA (Atualizada com a tabela CSV) -->
     <script>
         const LEVELS_CFG = [
             { 
@@ -101,56 +101,56 @@
                 color: "text-red-400", border: "level-gradient-1", icon: "fa-shield-halved", 
                 abiSupport: "$1.00 – $2.00", abiCore: "$2.50 – $3.00", abiShot: "$3.20",
                 pSupport: "40%", pCore: "50%", pShot: "10%",
-                dist: "40% Sup / 50% Core / 10% Shot",
-                rules: "Sem re-entry agressivo; evitar turbos extremos. Foco em recuperar confiança e bankroll."
+                dist: "40% Suporte / 50% Core / 10% Shot",
+                rules: "Foco em recuperar confiança e bankroll com baixo risco."
             },
             { 
-                id: 2, name: "Micro Confortável", min: 600, max: 800, 
+                id: 2, name: "Micro confortável", min: 600, max: 800, 
                 color: "text-orange-400", border: "level-gradient-2", icon: "fa-couch", 
                 abiSupport: "$2.00 – $2.50", abiCore: "$3.00 – $4.00", abiShot: "$5.40",
                 pSupport: "30%", pCore: "50%", pShot: "20%",
-                dist: "30% Sup / 50% Core / 20% Shot",
-                rules: "Re-entry seletivo; evitar $8.88 ainda. Aumentando exposição ao core."
+                dist: "30% Suporte / 50% Core / 20% Shot",
+                rules: "Aumentar volume gradualmente mantendo a segurança."
             },
             { 
-                id: 3, name: "Zona Ideal PKO", min: 800, max: 1000, 
+                id: 3, name: "Zona ideal PKO", min: 800, max: 1000, 
                 color: "text-yellow-400", border: "level-gradient-3", icon: "fa-crosshairs", 
                 abiSupport: "$2.50 – $3.20", abiCore: "$4.00 – $5.40", abiShot: "$8.88",
                 pSupport: "25%", pCore: "55%", pShot: "20%",
-                dist: "25% Sup / 55% Core / 20% Shot",
-                rules: "Máx 1–2 shots por sessão. O volume principal agora é no $4.40-$5.40."
+                dist: "25% Suporte / 55% Core / 20% Shot",
+                rules: "Maximizar lucros explorando a dinâmica de bounties."
             },
             { 
-                id: 4, name: "Expansão Controlada", min: 1000, max: 1300, 
+                id: 4, name: "Expansão controlada", min: 1000, max: 1300, 
                 color: "text-emerald-400", border: "level-gradient-4", icon: "fa-chart-line", 
                 abiSupport: "$3.20 – $4.00", abiCore: "$5.00 – $6.00", abiShot: "$8.88 – $10.80",
                 pSupport: "20%", pCore: "55%", pShot: "25%",
-                dist: "20% Sup / 55% Core / 25% Shot",
-                rules: "Re-entry máx 2 bullets; $10.80 ainda é shot, não base. Cuidado com variância."
+                dist: "20% Suporte / 55% Core / 25% Shot",
+                rules: "Testar limites superiores com gestão de risco rigorosa."
             },
             { 
                 id: 5, name: "Consolidação", min: 1300, max: 1600, 
                 color: "text-cyan-400", border: "level-gradient-5", icon: "fa-chess-rook", 
-                abiSupport: "$4.00 – $5.00", abiCore: "$6.00 – $7.00", abiShot: "$10.80 – $15.00",
+                abiSupport: "$4.00 – $5.00", abiCore: "$6.00 – $7.00", abiShot: "$10.80",
                 pSupport: "15%", pCore: "60%", pShot: "25%",
-                dist: "15% Sup / 60% Core / 25% Shot",
-                rules: "Consolidar field de $7-$11. Início da transição para Low Stakes."
+                dist: "15% Suporte / 60% Core / 25% Shot",
+                rules: "Firmar presença nos limites médios e reduzir variância."
             },
             { 
                 id: 6, name: "Ataque Low Stakes", min: 1600, max: 2200, 
                 color: "text-blue-400", border: "level-gradient-6", icon: "fa-jet-fighter-up", 
                 abiSupport: "$5.40 – $8.00", abiCore: "$8.88 – $10.80", abiShot: "$16.50 – $22.00",
                 pSupport: "10%", pCore: "60%", pShot: "30%",
-                dist: "10% Sup / 60% Core / 30% Shot",
-                rules: "Agressividade seletiva nos $16.50. Volume massivo nos $10.80."
+                dist: "10% Suporte / 60% Core / 30% Shot",
+                rules: "Agressividade seletiva nos melhores torneios do dia."
             },
             { 
                 id: 7, name: "Low Stakes Pro", min: 2200, max: 9999999, 
                 color: "text-purple-400", border: "level-gradient-7", icon: "fa-crown", 
                 abiSupport: "$8.00 – $10.80", abiCore: "$15.00 – $22.00", abiShot: "$33.00+",
                 pSupport: "10%", pCore: "65%", pShot: "25%",
-                dist: "10% Sup / 65% Core / 25% Shot",
-                rules: "Established Reg. Caça aos bounties grandes e busca por troféus."
+                dist: "10% Suporte / 65% Core / 25% Shot",
+                rules: "Dominar o field regular e buscar os grandes troféus."
             }
         ];
 
@@ -418,7 +418,7 @@
                                     </div>
                                 </div>
                                 <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
-                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Regra de Ouro</p>
+                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Resumo</p>
                                     <div class="flex-grow flex items-center">
                                         <p class="text-slate-300 italic leading-snug" x-text="lvl.rules"></p>
                                     </div>
@@ -571,17 +571,20 @@
                             <!-- Shot -->
                             <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
                                 <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Shot</p>
-                                <p class="text-sm font-mono text-red-300 font-bold" x-text="currentLevelObj.abiShot"></p>
+                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiShot"></p>
                                 <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
                                     <div class="h-full bg-red-500" :style="'width: ' + currentLevelObj.pShot"></div>
                                 </div>
-                                <p class="text-[9px] text-red-400 mt-1" x-text="currentLevelObj.pShot"></p>
+                                <p class="text-[9px] text-slate-400 mt-1" x-text="currentLevelObj.pShot"></p>
                             </div>
                         </div>
                         
                         <div class="flex items-start gap-3 bg-dark-950/30 p-3 rounded-xl border border-white/5">
                             <i class="fa-solid fa-lightbulb text-yellow-500 mt-0.5"></i>
-                            <p class="text-xs text-slate-300 italic" x-text="'&quot;' + currentLevelObj.rules + '&quot;'"></p>
+                            <div>
+                                <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Foco do Nível</p>
+                                <p class="text-xs text-slate-300 italic" x-text="'&quot;' + currentLevelObj.rules + '&quot;'"></p>
+                            </div>
                         </div>
                     </div>
                 </div>
