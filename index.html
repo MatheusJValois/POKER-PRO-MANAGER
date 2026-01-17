@@ -813,40 +813,38 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // Configuração Nativa fornecida pelo usuário
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0w_GcC2hmGh4B8tkya3DN-83h-B1ARFE",
+            authDomain: "pokermanager-2dd73.firebaseapp.com",
+            projectId: "pokermanager-2dd73",
+            storageBucket: "pokermanager-2dd73.firebasestorage.app",
+            messagingSenderId: "891651566275",
+            appId: "1:891651566275:web:8954015ae91e9268a21076",
+            measurementId: "G-Z22PMJLVBH"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+        // Expõe funções do Firebase para o Alpine
         window.startCloud = (alpineContext) => {
-            const initAuth = async () => {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Auth Error:", error);
-                    alpineContext.cloudStatus = { connected: false, text: 'Erro Auth', msg: error.message };
-                }
-            };
-
-            initAuth();
+            signInAnonymously(auth).catch(e => {
+                alpineContext.cloudStatus = { connected: false, text: 'Erro Auth', msg: e.message };
+            });
 
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     alpineContext.cloudStatus = { connected: true, text: 'Online', msg: 'Sincronizado' };
-                    // Path strict compliant: /artifacts/{appId}/users/{userId}/data/main
-                    const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'main');
+                    // Path simplificado para uso privado: /users/{userId}/bankroll/main
+                    const userDocRef = doc(db, 'users', user.uid, 'bankroll', 'main');
 
                     onSnapshot(userDocRef, (docSnap) => {
                         if (docSnap.exists()) {
                             const cloudData = docSnap.data();
-                            // Simple conflict resolution: Cloud wins if different
                             if (JSON.stringify(cloudData.sessions) !== JSON.stringify(alpineContext.sessions)) {
                                 console.log("Recebendo dados da nuvem...");
                                 alpineContext.isRemoteUpdate = true;
@@ -857,7 +855,6 @@
                                 alpineContext.updateCharts();
                             }
                         } else {
-                            // If doc doesn't exist, create it with local data
                             alpineContext.pushToCloud();
                         }
                     }, (error) => {
