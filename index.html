@@ -164,7 +164,7 @@
                 currencyRate: 5.0,
                 showStopLoss: false,
                 showLevels: false,
-                cloudStatus: { connected: false, text: 'Offline', msg: '' },
+                cloudStatus: { connected: false, text: 'Offline', msg: 'Conectando...' },
                 isRemoteUpdate: false,
                 levels: LEVELS_CFG,
                 charts: {},
@@ -469,9 +469,15 @@
                             <span x-text="'USD ' + currencyRate.toFixed(2)"></span>
                         </div>
                     </div>
-                    <div class="h-2 w-2 rounded-full shadow-[0_0_10px_currentColor]" 
-                         :class="cloudStatus.connected ? 'bg-emerald-500 text-emerald-500' : 'bg-red-500 text-red-500'" 
-                         :title="cloudStatus.text"></div>
+                    
+                    <!-- Cloud Status Indicator -->
+                    <div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5" :title="cloudStatus.msg">
+                        <div class="h-2 w-2 rounded-full shadow-[0_0_10px_currentColor]" 
+                             :class="cloudStatus.connected ? 'bg-emerald-500 text-emerald-500' : (cloudStatus.text === 'Offline' ? 'bg-red-500 text-red-500' : 'bg-yellow-500 text-yellow-500 animate-pulse')"></div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider" 
+                              :class="cloudStatus.connected ? 'text-emerald-500' : (cloudStatus.text === 'Offline' ? 'text-red-500' : 'text-yellow-500')" 
+                              x-text="cloudStatus.text"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -802,5 +808,79 @@
         </div>
 
     </main>
+
+    <!-- FIREBASE MODULES (Versão Moderna v9) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        window.startCloud = (alpineContext) => {
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                    alpineContext.cloudStatus = { connected: false, text: 'Erro Auth', msg: error.message };
+                }
+            };
+
+            initAuth();
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    alpineContext.cloudStatus = { connected: true, text: 'Online', msg: 'Sincronizado' };
+                    // Path strict compliant: /artifacts/{appId}/users/{userId}/data/main
+                    const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'main');
+
+                    onSnapshot(userDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const cloudData = docSnap.data();
+                            // Simple conflict resolution: Cloud wins if different
+                            if (JSON.stringify(cloudData.sessions) !== JSON.stringify(alpineContext.sessions)) {
+                                console.log("Recebendo dados da nuvem...");
+                                alpineContext.isRemoteUpdate = true;
+                                alpineContext.sessions = cloudData.sessions || [];
+                                if(cloudData.settings) alpineContext.settings = {...alpineContext.settings, ...cloudData.settings};
+                                alpineContext.saveLocal(false); 
+                                alpineContext.isRemoteUpdate = false;
+                                alpineContext.updateCharts();
+                            }
+                        } else {
+                            // If doc doesn't exist, create it with local data
+                            alpineContext.pushToCloud();
+                        }
+                    }, (error) => {
+                        console.error("Sync Error:", error);
+                        alpineContext.cloudStatus = { connected: false, text: 'Erro Sync', msg: error.message };
+                    });
+
+                    alpineContext.pushToCloud = () => {
+                        if(alpineContext.isRemoteUpdate) return;
+                        setDoc(userDocRef, {
+                            sessions: JSON.parse(JSON.stringify(alpineContext.sessions)),
+                            settings: JSON.parse(JSON.stringify(alpineContext.settings)),
+                            lastUpdate: new Date().toISOString()
+                        }).catch(e => {
+                            console.error("Save Error:", e);
+                            alpineContext.cloudStatus = { connected: false, text: 'Erro Salvar', msg: e.message };
+                        });
+                    };
+                }
+            });
+        };
+        
+        window.dispatchEvent(new CustomEvent('firebase-ready'));
+    </script>
 </body>
 </html>
