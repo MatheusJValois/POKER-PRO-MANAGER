@@ -1,960 +1,806 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Bankroll Poker PRO</title>
+    <title>PokerPro Manager v7 (PKO Edition)</title>
+    
     <!-- Bibliotecas Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase SDK (Compatibilidade v9) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
 
-    <!-- Ícones -->
+    <!-- Fontes e Ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Fontes -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                    fontFamily: { 
+                        sans: ['Outfit', 'sans-serif'], 
+                        mono: ['JetBrains Mono', 'monospace'] 
                     },
-                    colors: {
-                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
-                        poker: { green: '#10b981', red: '#ef4444', blue: '#3b82f6', gold: '#f59e0b' }
+                    colors: { 
+                        dark: { 950: '#020617', 900: '#0f172a', 800: '#1e293b' },
+                        primary: { 500: '#3b82f6', 600: '#2563eb' }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; }
-        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .input-dark { background-color: #0f172a; border: 1px solid #334155; color: white; transition: all 0.2s; }
-        .input-dark:focus { outline: none; border-color: #3b82f6; ring: 1px solid #3b82f6; }
+        body { 
+            background-color: #020617; 
+            color: #e2e8f0; 
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
         
-        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        .animate-slide { animation: slideIn 0.4s ease-out; }
-        .stop-loss-alert { animation: pulse-red 2s infinite; border: 2px solid #ef4444; }
+        /* Glassmorphism Cards */
+        .glass-card { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
         
-        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; opacity: 0; visibility: hidden; }
-        .modal.active { opacity: 1; visibility: visible; }
-        .modal-content { transform: scale(0.95); transition: transform 0.3s ease-in-out; }
-        .modal.active .modal-content { transform: scale(1); }
+        .glass-input { 
+            background: rgba(15, 23, 42, 0.6); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            color: white; 
+            transition: all 0.3s ease; 
+        }
+        .glass-input:focus { 
+            outline: none; 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); 
+            background: rgba(15, 23, 42, 0.9);
+        }
 
-        .level-card { transition: all 0.3s; border: 1px solid #334155; }
-        .level-card.locked { opacity: 0.5; filter: grayscale(0.8); }
-        .level-card.current { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); transform: scale(1.02); }
-        
-        .tab-btn.active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
-        .tab-btn { color: #94a3b8; transition: all 0.2s; }
-        .tab-btn:hover { color: #e2e8f0; }
-        
-        .currency-toggle input:checked + div { background-color: #3b82f6; color: white; border-color: #3b82f6; }
-        
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Níveis Styles */
+        .level-gradient-1 { background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(153, 27, 27, 0.1)); border-left: 4px solid #ef4444; }
+        .level-gradient-2 { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(154, 52, 18, 0.1)); border-left: 4px solid #f97316; }
+        .level-gradient-3 { background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(161, 98, 7, 0.1)); border-left: 4px solid #eab308; }
+        .level-gradient-4 { background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 95, 70, 0.1)); border-left: 4px solid #10b981; }
+        .level-gradient-5 { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(21, 94, 117, 0.1)); border-left: 4px solid #06b6d4; }
+        .level-gradient-6 { background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(30, 58, 138, 0.1)); border-left: 4px solid #3b82f6; }
+        .level-gradient-7 { background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(107, 33, 168, 0.1)); border-left: 4px solid #a855f7; }
+
+        [x-cloak] { display: none !important; }
+        
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
+
+    <!-- LÓGICA (Mantida idêntica à versão anterior) -->
+    <script>
+        const LEVELS_CFG = [
+            { 
+                id: 1, name: "Base / Reconstrução", min: -99999, max: 600, 
+                color: "text-red-400", border: "level-gradient-1", icon: "fa-shield-halved", 
+                abiSupport: "$1.00 – $2.00", abiCore: "$2.50 – $3.00", abiShot: "$3.20",
+                pSupport: "40%", pCore: "50%", pShot: "10%",
+                dist: "40% Sup / 50% Core / 10% Shot",
+                rules: "Sem re-entry agressivo; evitar turbos extremos. Foco em recuperar confiança e bankroll."
+            },
+            { 
+                id: 2, name: "Micro Confortável", min: 600, max: 800, 
+                color: "text-orange-400", border: "level-gradient-2", icon: "fa-couch", 
+                abiSupport: "$2.00 – $2.50", abiCore: "$3.00 – $4.00", abiShot: "$5.40",
+                pSupport: "30%", pCore: "50%", pShot: "20%",
+                dist: "30% Sup / 50% Core / 20% Shot",
+                rules: "Re-entry seletivo; evitar $8.88 ainda. Aumentando exposição ao core."
+            },
+            { 
+                id: 3, name: "Zona Ideal PKO", min: 800, max: 1000, 
+                color: "text-yellow-400", border: "level-gradient-3", icon: "fa-crosshairs", 
+                abiSupport: "$2.50 – $3.20", abiCore: "$4.00 – $5.40", abiShot: "$8.88",
+                pSupport: "25%", pCore: "55%", pShot: "20%",
+                dist: "25% Sup / 55% Core / 20% Shot",
+                rules: "Máx 1–2 shots por sessão. O volume principal agora é no $4.40-$5.40."
+            },
+            { 
+                id: 4, name: "Expansão Controlada", min: 1000, max: 1300, 
+                color: "text-emerald-400", border: "level-gradient-4", icon: "fa-chart-line", 
+                abiSupport: "$3.20 – $4.00", abiCore: "$5.00 – $6.00", abiShot: "$8.88 – $10.80",
+                pSupport: "20%", pCore: "55%", pShot: "25%",
+                dist: "20% Sup / 55% Core / 25% Shot",
+                rules: "Re-entry máx 2 bullets; $10.80 ainda é shot, não base. Cuidado com variância."
+            },
+            { 
+                id: 5, name: "Consolidação", min: 1300, max: 1600, 
+                color: "text-cyan-400", border: "level-gradient-5", icon: "fa-chess-rook", 
+                abiSupport: "$4.00 – $5.00", abiCore: "$6.00 – $7.00", abiShot: "$10.80 – $15.00",
+                pSupport: "15%", pCore: "60%", pShot: "25%",
+                dist: "15% Sup / 60% Core / 25% Shot",
+                rules: "Consolidar field de $7-$11. Início da transição para Low Stakes."
+            },
+            { 
+                id: 6, name: "Ataque Low Stakes", min: 1600, max: 2200, 
+                color: "text-blue-400", border: "level-gradient-6", icon: "fa-jet-fighter-up", 
+                abiSupport: "$5.40 – $8.00", abiCore: "$8.88 – $10.80", abiShot: "$16.50 – $22.00",
+                pSupport: "10%", pCore: "60%", pShot: "30%",
+                dist: "10% Sup / 60% Core / 30% Shot",
+                rules: "Agressividade seletiva nos $16.50. Volume massivo nos $10.80."
+            },
+            { 
+                id: 7, name: "Low Stakes Pro", min: 2200, max: 9999999, 
+                color: "text-purple-400", border: "level-gradient-7", icon: "fa-crown", 
+                abiSupport: "$8.00 – $10.80", abiCore: "$15.00 – $22.00", abiShot: "$33.00+",
+                pSupport: "10%", pCore: "65%", pShot: "25%",
+                dist: "10% Sup / 65% Core / 25% Shot",
+                rules: "Established Reg. Caça aos bounties grandes e busca por troféus."
+            }
+        ];
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('pokerApp', () => ({
+                activeTab: 'dashboard',
+                sessions: [],
+                settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'] },
+                form: { date: new Date().toISOString().split('T')[0], type: 'grind', location: '', context: 'Online', volume: '', invested: '', return: '', amount: '' },
+                inputCurrency: 'USD',
+                currencyRate: 5.0,
+                showStopLoss: false,
+                showLevels: false,
+                cloudStatus: { connected: false, text: 'Offline', msg: '' },
+                isRemoteUpdate: false,
+                levels: LEVELS_CFG,
+                charts: {},
+
+                init() {
+                    const saved = localStorage.getItem('poker_pro_v7_pko');
+                    if(saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            this.sessions = data.sessions || [];
+                            if (data.settings) this.settings = {...this.settings, ...data.settings};
+                        } catch(e) { console.error("Erro ao carregar", e); }
+                    }
+                    
+                    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                        .then(r => r.json()).then(d => this.currencyRate = d.rates.BRL).catch(e => console.log('Erro Cotação'));
+
+                    if(window.startCloud) window.startCloud(this);
+                    else window.addEventListener('firebase-ready', () => { if(window.startCloud) window.startCloud(this); });
+                    
+                    this.$watch('sessions', () => { this.updateCharts(); this.renderMiniChart(); });
+                    setTimeout(() => this.renderMiniChart(), 500);
+                },
+
+                get bankroll() { return this.settings.initialBankroll + this.sessions.reduce((acc, s) => acc + (s.profit || 0), 0); },
+                get totalProfit() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0); },
+                get totalInvested() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0); },
+                get totalVolume() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.volume || 0), 0); },
+                get roi() { return this.totalInvested > 0 ? ((this.totalProfit / this.totalInvested) * 100).toFixed(1) : 0; },
+                get abi() { return this.totalVolume > 0 ? (this.totalInvested / this.totalVolume) : 0; },
+                get currencySymbol() { return this.inputCurrency === 'USD' ? '$' : 'R$'; },
+                get todaysLoss() {
+                    const today = new Date().toISOString().split('T')[0];
+                    const loss = this.sessions.filter(s => s.date === today && s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0);
+                    return loss < 0 ? Math.abs(loss) : 0;
+                },
+                get currentLevelObj() { return this.levels.find(l => this.bankroll >= l.min && this.bankroll < l.max) || this.levels[this.levels.length-1]; },
+                get nextLevelTarget() {
+                    const idx = this.levels.indexOf(this.currentLevelObj);
+                    return this.levels[idx+1] ? this.formatMoney(this.levels[idx+1].min) : 'MAX';
+                },
+                get levelProgress() {
+                    const lvl = this.currentLevelObj;
+                    const next = this.levels[this.levels.indexOf(lvl)+1];
+                    if(!next) return 100;
+                    return Math.min(100, Math.max(0, ((this.bankroll - lvl.min) / (next.min - lvl.min)) * 100));
+                },
+                get streak() {
+                    const dates = [...new Set(this.sessions.filter(s => s.type === 'grind').map(s => s.date))].sort();
+                    if(dates.length === 0) return 0;
+                    let streak = 0, check = new Date();
+                    const hasToday = dates.includes(check.toISOString().split('T')[0]);
+                    if(!hasToday) check.setDate(check.getDate() - 1);
+                    while(true) {
+                        const dateStr = check.toISOString().split('T')[0];
+                        if(dates.includes(dateStr)) { streak++; check.setDate(check.getDate()-1); } else break;
+                    }
+                    return streak;
+                },
+
+                addSession() {
+                    const f = this.form;
+                    const mult = this.inputCurrency === 'BRL' ? (1/this.currencyRate) : 1;
+                    let session = {
+                        id: Date.now(),
+                        date: f.date, type: f.type,
+                        location: f.type === 'grind' ? (f.location || 'Online') : (f.type === 'deposit' ? 'Depósito' : 'Saque')
+                    };
+                    if(f.type === 'grind') {
+                        session.volume = f.volume || 0;
+                        session.invested = (f.invested || 0) * mult;
+                        session.return = (f.return || 0) * mult;
+                        session.profit = session.return - session.invested;
+                        session.context = f.context;
+                        if(session.profit < 0 && (this.todaysLoss + Math.abs(session.profit)) >= this.settings.dailyStopLoss) this.showStopLoss = true;
+                        if(session.location && !this.settings.locations.includes(session.location)) this.settings.locations.push(session.location);
+                    } else {
+                        const val = (f.amount || 0) * mult;
+                        session.profit = f.type === 'deposit' ? val : -val;
+                        session.invested = 0; session.return = 0;
+                    }
+                    this.sessions.push(session); this.saveLocal();
+                    this.form.invested = ''; this.form.return = ''; this.form.amount = '';
+                },
+                deleteSession(id) { if(confirm('Apagar registro?')) { this.sessions = this.sessions.filter(s => s.id !== id); this.saveLocal(); } },
+                saveLocal(sync = true) {
+                    localStorage.setItem('poker_pro_v7_pko', JSON.stringify({ sessions: this.sessions, settings: this.settings }));
+                    if(sync && this.pushToCloud) this.pushToCloud();
+                },
+                formatMoney(val) { return '$' + (val || 0).toFixed(2); },
+                formatBRL(val) { return 'R$ ' + ((val || 0) * this.currencyRate).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
+                formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}`; },
+                isCurrentLevel(l) { return this.currentLevelObj.id === l.id; },
+                isLocked(l) { return this.bankroll < l.min; },
+                exportData() {
+                    const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({sessions: this.sessions, settings: this.settings}));
+                    const node = document.createElement('a'); node.setAttribute("href", str); node.setAttribute("download", "bankroll_backup.json");
+                    document.body.appendChild(node); node.click(); node.remove();
+                },
+                importData(e) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        try {
+                            const d = JSON.parse(evt.target.result);
+                            this.sessions = d.sessions || [];
+                            if(d.settings) this.settings = d.settings;
+                            this.saveLocal(); location.reload();
+                        } catch(err) { alert('Arquivo inválido'); }
+                    };
+                    reader.readAsText(e.target.files[0]);
+                },
+                resetAll() { if(confirm("Tem certeza absoluta?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
+                renderMiniChart() {
+                    const ctx = document.getElementById('miniChartEl')?.getContext('2d');
+                    if(!ctx) return;
+                    if(this.charts.mini) this.charts.mini.destroy();
+                    const data = this.buildChartData();
+                    this.charts.mini = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                data: data.values,
+                                borderColor: '#3b82f6', backgroundColor: (context) => {
+                                    const ctx = context.chart.ctx;
+                                    const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+                                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                                    return gradient;
+                                },
+                                borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display:false}, y: {display:false} } }
+                    });
+                },
+                renderCharts() {
+                    setTimeout(() => {
+                        const data = this.buildChartData();
+                        const ctxMain = document.getElementById('mainChartEl')?.getContext('2d');
+                        if (ctxMain) {
+                            if(this.charts.main) this.charts.main.destroy();
+                            this.charts.main = new Chart(ctxMain, {
+                                type: 'line',
+                                data: {
+                                    labels: data.labels,
+                                    datasets: [{
+                                        label: 'Bankroll ($)', data: data.values,
+                                        borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        borderWidth: 2, fill: true, tension: 0.3
+                                    }]
+                                },
+                                options: { responsive: true, maintainAspectRatio: false, scales: { y: {grid: {color: '#334155'}}, x: {grid: {display: false}} } }
+                            });
+                        }
+                    }, 50);
+                },
+                updateCharts() { },
+                buildChartData() {
+                    let b = this.settings.initialBankroll;
+                    let values = [b], labels = ['Start'];
+                    [...this.sessions].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(s => {
+                        b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date));
+                    });
+                    return { values, labels };
+                }
+            }));
+        });
+    </script>
 </head>
-<body class="min-h-screen flex flex-col font-sans text-sm md:text-base relative">
+
+<body class="min-h-screen flex flex-col font-sans text-sm md:text-base relative selection:bg-primary-500 selection:text-white" x-data="pokerApp" x-cloak>
 
     <!-- OVERLAY DE STOP LOSS -->
-    <div id="stopLossOverlay" class="hidden fixed inset-0 z-50 bg-red-900/90 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-slate-900 p-8 rounded-2xl border-2 border-red-500 shadow-2xl text-center max-w-md animate-slide stop-loss-alert">
-            <i class="fa-solid fa-hand-paper text-6xl text-red-500 mb-4"></i>
-            <h2 class="text-3xl font-bold text-white mb-2">PARE AGORA!</h2>
-            <p class="text-xl text-red-200 mb-6">Você atingiu seu limite de perda diária (<span id="stopLossValueDisplay"></span>).</p>
-            <p class="text-slate-400 text-sm mb-6">Preserve seu mental e seu bankroll. Vá descansar e volte amanhã mais forte.</p>
-            <button onclick="closeStopLoss()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                Entendido, vou fechar as telas
+    <div x-show="showStopLoss" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-md transition-opacity"
+         x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+        <div class="glass-card p-8 rounded-3xl border border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center max-w-md animate-pulse-soft">
+            <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fa-solid fa-hand-paper text-4xl text-red-500"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white mb-2">Stop Loss Atingido</h2>
+            <p class="text-lg text-slate-300 mb-8">Você atingiu o limite de <span class="text-red-400 font-mono font-bold" x-text="formatMoney(todaysLoss)"></span> hoje.</p>
+            <button @click="showStopLoss = false" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-10 rounded-full transition-all shadow-lg hover:shadow-red-500/30">
+                Encerrar Sessão
             </button>
         </div>
     </div>
 
-    <!-- MODAL DE NÍVEIS (CARREIRA) -->
-    <div id="levelsModal" class="modal fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="modal-content bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden">
-            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-850">
+    <!-- MODAL DE NÍVEIS -->
+    <div x-show="showLevels" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-md p-4 transition-opacity"
+         x-transition>
+        <div @click.outside="showLevels = false" class="glass-card w-full max-w-5xl max-h-[90vh] rounded-3xl flex flex-col overflow-hidden animate-slide-up">
+            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-dark-900/50">
                 <div>
-                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-blue-500"></i> Plano de Carreira
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center text-primary-500"><i class="fa-solid fa-layer-group"></i></span>
+                        Plano de Carreira PKO
                     </h2>
-                    <p class="text-slate-400 text-sm">Seu mapa para o High Stakes</p>
+                    <p class="text-slate-400 text-sm mt-1 ml-14">Mapa estratégico para subir os stakes</p>
                 </div>
-                <button onclick="toggleLevelsModal()" class="text-slate-400 hover:text-white transition-colors text-2xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button @click="showLevels = false" class="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-6" id="levelsContainer"></div>
+            <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+                <template x-for="lvl in levels" :key="lvl.id">
+                    <div class="relative overflow-hidden rounded-2xl border border-white/5 transition-all duration-300 hover:border-white/10 group"
+                         :class="{
+                            'ring-2 ring-primary-500/50 shadow-lg shadow-primary-500/10': isCurrentLevel(lvl),
+                            'opacity-60 grayscale': isLocked(lvl),
+                            [lvl.border.replace('border-left', 'bg')]: false
+                         }">
+                         
+                        <!-- Fundo Gradiente Sutil -->
+                        <div class="absolute inset-0 opacity-10 pointer-events-none transition-opacity group-hover:opacity-20" 
+                             :class="lvl.border.replace('border-l-4', '').replace('border-', 'bg-')"></div>
+
+                        <div class="relative p-5 grid md:grid-cols-[1fr_2fr] gap-6">
+                            <!-- Header Info -->
+                            <div class="flex items-start gap-4">
+                                <div class="w-14 h-14 rounded-2xl bg-dark-950/50 border border-white/10 flex items-center justify-center shrink-0 text-2xl shadow-inner" :class="lvl.color">
+                                    <i :class="['fa-solid', lvl.icon]"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h3 class="text-lg font-bold text-white" x-text="lvl.name"></h3>
+                                        <span x-show="isCurrentLevel(lvl)" class="bg-primary-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Atual</span>
+                                    </div>
+                                    <p class="text-xs font-mono text-slate-400 bg-black/20 inline-block px-2 py-1 rounded">
+                                        <span x-text="lvl.min < 0 ? '0' : formatMoney(lvl.min)"></span> 
+                                        <i class="fa-solid fa-arrow-right mx-1 text-[10px]"></i> 
+                                        <span x-text="lvl.max > 99999 ? '∞' : formatMoney(lvl.max)"></span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Grid de Detalhes -->
+                            <div class="grid grid-cols-3 gap-3 text-xs">
+                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5">
+                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Buy-ins</p>
+                                    <div class="space-y-1 font-mono">
+                                        <div class="flex justify-between"><span class="text-slate-400">Sup</span> <span x-text="lvl.abiSupport"></span></div>
+                                        <div class="flex justify-between text-white font-bold"><span class="text-primary-500">Core</span> <span x-text="lvl.abiCore"></span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">Shot</span> <span class="text-red-400" x-text="lvl.abiShot"></span></div>
+                                    </div>
+                                </div>
+                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
+                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Mix de Volume</p>
+                                    <div class="flex-grow flex items-center justify-center text-center">
+                                        <p class="text-slate-300 leading-snug" x-text="lvl.dist"></p>
+                                    </div>
+                                </div>
+                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
+                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Regra de Ouro</p>
+                                    <div class="flex-grow flex items-center">
+                                        <p class="text-slate-300 italic leading-snug" x-text="lvl.rules"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>
 
     <!-- HEADER -->
-    <header class="bg-slate-850 border-b border-slate-700 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 py-4">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                
-                <!-- Logo & Nome -->
+    <header class="fixed top-0 w-full z-40 bg-dark-950/80 backdrop-blur-xl border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo -->
                 <div class="flex items-center gap-3">
-                    <div class="bg-blue-600 p-2 rounded-lg">
-                        <i class="fa-solid fa-layer-group text-white text-xl"></i>
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-blue-700 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                        <i class="fa-solid fa-layer-group text-lg"></i>
                     </div>
                     <div>
-                        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">POKER PRO <span class="text-blue-500">MANAGER</span></h1>
-                        <p class="text-xs text-slate-400 font-mono tracking-widest">v5.2 NATIVE</p>
+                        <h1 class="text-xl font-bold text-white tracking-tight leading-none">POKER PRO</h1>
+                        <p class="text-[10px] text-primary-500 font-mono tracking-[0.2em] font-bold mt-1">MANAGER v7</p>
                     </div>
                 </div>
 
-                <!-- Visor de Bankroll e Status Nuvem -->
-                <div class="flex flex-col items-end">
-                    <div class="flex items-center gap-3">
-                        <div id="cloudStatus" class="hidden flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-500" title="Status da Nuvem">
-                            <i class="fa-solid fa-cloud"></i> <span id="cloudStatusText">Offline</span>
+                <!-- Nav Desktop -->
+                <nav class="hidden md:flex bg-white/5 p-1 rounded-full border border-white/5">
+                    <template x-for="t in ['dashboard', 'charts', 'settings']">
+                        <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                                class="px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                                :class="activeTab === t ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'">
+                            <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid"></i>
+                            <span class="capitalize" x-text="t"></span>
+                        </button>
+                    </template>
+                </nav>
+
+                <!-- Status Pill -->
+                <div class="flex items-center gap-4">
+                    <div class="hidden sm:flex flex-col items-end">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400 font-medium" x-text="settings.playerName"></span>
+                            <span class="text-2xl font-mono font-bold text-white tracking-tight" x-text="formatMoney(bankroll)"></span>
                         </div>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-sm text-slate-400 hidden md:inline" id="playerNameDisplay">Jogador:</span>
-                            <span id="headerBankrollUSD" class="text-2xl md:text-3xl font-mono font-bold text-emerald-400">$0.00</span>
+                        <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-white/5 px-2 py-0.5 rounded-md">
+                            <span x-text="formatBRL(bankroll)"></span>
+                            <span class="w-1 h-1 rounded-full bg-slate-600"></span>
+                            <span x-text="'USD ' + currencyRate.toFixed(2)"></span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <span id="headerBankrollBRL" class="text-slate-300 font-mono">R$ 0,00</span>
-                        <span class="text-slate-600">|</span>
-                        <span id="usdRate" class="text-slate-500">USD: R$ ...</span>
-                    </div>
+                    <div class="h-2 w-2 rounded-full shadow-[0_0_10px_currentColor]" 
+                         :class="cloudStatus.connected ? 'bg-emerald-500 text-emerald-500' : 'bg-red-500 text-red-500'" 
+                         :title="cloudStatus.text"></div>
                 </div>
             </div>
-
-            <!-- Navegação (Tabs) -->
-            <nav class="flex gap-4 md:gap-6 border-b md:border-b-0 border-slate-700 overflow-x-auto w-full md:w-auto mt-4 md:mt-2">
-                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie"></i> Dashboard
-                </button>
-                <button onclick="switchTab('charts')" id="tab-charts" class="tab-btn pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
-                    <i class="fa-solid fa-chart-line"></i> Gráficos
-                </button>
-                <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
-                    <i class="fa-solid fa-gear"></i> Config
-                </button>
-            </nav>
+        </div>
+        
+        <!-- Mobile Nav -->
+        <div class="md:hidden border-t border-white/5 bg-dark-900/50 backdrop-blur-lg">
+            <div class="flex justify-around p-2">
+                <template x-for="t in ['dashboard', 'charts', 'settings']">
+                    <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                            class="flex-1 py-3 flex flex-col items-center gap-1 text-xs font-medium transition-colors"
+                            :class="activeTab === t ? 'text-primary-500' : 'text-slate-500'">
+                        <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid text-lg"></i>
+                        <span class="capitalize" x-text="t"></span>
+                    </button>
+                </template>
+            </div>
         </div>
     </header>
 
-    <!-- CONTEÚDO PRINCIPAL -->
-    <main class="flex-grow bg-slate-900 p-4 md:p-6">
-        <div class="max-w-7xl mx-auto">
+    <main class="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen">
+        
+        <!-- VIEW: DASHBOARD -->
+        <div x-show="activeTab === 'dashboard'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
             
-            <!-- VIEW: DASHBOARD -->
-            <div id="view-dashboard" class="space-y-6 animate-slide">
+            <!-- Hero Section -->
+            <div class="glass-card rounded-3xl p-1 relative overflow-hidden mb-8 group animate-fade-in" :class="currentLevelObj.border.replace('border-left', '')">
+                <!-- Dynamic Background -->
+                <div class="absolute inset-0 opacity-20 transition-all duration-1000" :class="currentLevelObj.border.replace('border-l-4', '').replace('border-', 'bg-')"></div>
                 
-                <!-- PANORAMA DO BANKROLL -->
-                <div id="panoramaCard" class="card p-6 md:p-8 relative overflow-hidden transition-colors duration-500 border-l-4">
-                    <div class="absolute top-0 right-0 p-8 opacity-5">
-                        <i class="fa-solid fa-coins text-9xl"></i>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                        <div>
-                            <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-1">Bankroll Atual</p>
-                            <div class="flex items-baseline gap-2">
-                                <h2 id="panoramaBankroll" class="text-5xl md:text-6xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">$0.00</h2>
-                                <span id="panoramaCurrency" class="text-xl text-slate-500 font-bold">USD</span>
+                <div class="relative bg-dark-950/80 rounded-[20px] p-6 md:p-10 grid lg:grid-cols-[1.5fr_1fr] gap-8 md:gap-12 items-center backdrop-blur-xl">
+                    
+                    <!-- Left Side: Bankroll -->
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white/10 text-white border border-white/10" x-text="currentLevelObj.name"></span>
+                            <span class="text-xs text-slate-400 font-mono" x-text="'ABI Médio: ' + formatMoney(abi)"></span>
+                        </div>
+                        
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <h2 class="text-5xl md:text-7xl font-mono font-bold text-white tracking-tighter drop-shadow-2xl" x-text="formatMoney(bankroll)"></h2>
+                            <span class="text-2xl text-slate-600 font-bold">USD</span>
+                        </div>
+                        
+                        <div class="w-full bg-dark-900 h-3 rounded-full overflow-hidden border border-white/5 relative">
+                            <div class="h-full transition-all duration-1000 relative overflow-hidden" 
+                                 :class="currentLevelObj.color.replace('text-', 'bg-')" 
+                                 :style="'width: ' + levelProgress + '%'">
+                                 <div class="absolute inset-0 bg-white/20 animate-[pulse_2s_infinite]"></div>
                             </div>
-                            <p id="panoramaBRL" class="text-slate-400 font-mono mt-1 opacity-70">≈ R$ 0,00</p>
-                            <div class="mt-6 flex items-center gap-3">
-                                <span id="zoneBadge" class="px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-white border border-slate-600">Calculando...</span>
-                                <div class="h-2 w-32 bg-slate-800 rounded-full overflow-hidden">
-                                    <div id="zoneProgressBar" class="h-full bg-white w-0 transition-all duration-1000"></div>
+                        </div>
+                        <div class="flex justify-between mt-2 text-xs font-mono text-slate-500">
+                            <span x-text="'Next: ' + nextLevelTarget"></span>
+                            <span x-text="Math.round(levelProgress) + '%'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Strategy Grid -->
+                    <div class="bg-white/5 rounded-2xl p-6 border border-white/5 shadow-inner">
+                        <div class="grid grid-cols-3 gap-3 mb-5">
+                            <!-- Support -->
+                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
+                                <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Suporte</p>
+                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiSupport"></p>
+                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                                    <div class="h-full bg-slate-400" :style="'width: ' + currentLevelObj.pSupport"></div>
                                 </div>
+                                <p class="text-[9px] text-slate-400 mt-1" x-text="currentLevelObj.pSupport"></p>
                             </div>
-                        </div>
-                        <div class="flex flex-col justify-center border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
-                            <div class="mb-4">
-                                <p class="text-xs text-slate-400 uppercase font-bold mb-1">ABI Sugerido (Buy-in Médio)</p>
-                                <p id="panoramaABI" class="text-2xl font-bold text-white">$0.00 - $0.00</p>
-                            </div>
-                            <div class="bg-black/20 p-4 rounded-lg border border-white/5 backdrop-blur-sm">
-                                <p class="text-xs text-slate-400 uppercase font-bold mb-2 flex items-center gap-2"><i class="fa-solid fa-comment-dots"></i> Coach Diz:</p>
-                                <p id="panoramaQuote" class="text-sm italic text-slate-200 leading-relaxed">"Carregando sabedoria..."</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Gamification Bar -->
-                <div class="card px-6 py-4 bg-slate-850 flex flex-col md:flex-row justify-between items-center gap-4 cursor-pointer hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-600 group" onclick="toggleLevelsModal()">
-                    <div class="flex items-center gap-4 w-full md:w-auto">
-                        <div class="bg-blue-900/50 p-3 rounded-full text-blue-400 group-hover:scale-110 transition-transform">
-                            <i class="fa-solid fa-medal text-xl"></i>
-                        </div>
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <p class="text-xs text-slate-400 font-bold uppercase">Nível Atual</p>
-                                <span class="bg-slate-700 text-xs px-2 rounded text-slate-300">Clique para ver detalhes</span>
-                            </div>
-                            <p id="currentLevelName" class="text-lg font-bold text-white leading-none">Iniciante</p>
-                            <div class="w-full bg-slate-700 h-1.5 rounded-full mt-2 md:w-64">
-                                <div id="miniXpBar" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-6 w-full md:w-auto justify-end border-t md:border-t-0 md:border-l border-slate-700 pt-4 md:pt-0 md:pl-6">
-                        <div class="text-right">
-                            <p class="text-xs text-slate-400 font-bold uppercase">Próximo Marco</p>
-                            <p id="nextLevelTarget" class="text-emerald-400 font-mono font-bold">$...</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-slate-400 font-bold uppercase">Streak</p>
-                            <div class="flex items-center gap-2 justify-end">
-                                <span id="streakCount" class="text-orange-500 text-lg font-bold">0</span>
-                                <i class="fa-solid fa-fire text-orange-500 animate-pulse"></i>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-white transition-colors"></i>
-                    </div>
-                </div>
-
-                <!-- Cards de Métricas e Registro -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Coluna Esquerda: Métricas Rápidas -->
-                    <div class="space-y-6">
-                        <div class="card p-5 grid grid-cols-2 gap-4">
-                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Lucro Total</p>
-                                <p id="dashProfit" class="text-lg font-mono font-bold text-white">...</p>
-                            </div>
-                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">ROI Total</p>
-                                <p id="dashROI" class="text-lg font-mono font-bold text-white">...</p>
-                            </div>
-                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">ABI Real</p>
-                                <p id="dashABI" class="text-lg font-mono font-bold text-white">...</p>
-                            </div>
-                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Volume</p>
-                                <p id="dashVolume" class="text-lg font-mono font-bold text-white">...</p>
-                            </div>
-                        </div>
-                        <div class="card p-4 h-48 relative cursor-pointer hover:border-blue-500 transition-colors group" onclick="switchTab('charts')">
-                            <div class="absolute top-4 left-4 z-10">
-                                <h3 class="text-xs font-bold text-slate-400 group-hover:text-blue-400 transition-colors">EVOLUÇÃO</h3>
-                            </div>
-                            <canvas id="miniChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Coluna Direita (2/3): Formulário de Registro -->
-                    <div class="lg:col-span-2 card p-6 border-t-4 border-t-blue-500">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-pen-to-square"></i> Registrar Atividade
-                            </h2>
-                            <div class="flex bg-slate-800 rounded p-1 border border-slate-700">
-                                <label class="currency-toggle cursor-pointer">
-                                    <input type="radio" name="inputCurrency" value="USD" checked class="hidden" onchange="updateInputLabels()">
-                                    <div class="px-3 py-1 rounded text-xs font-bold text-slate-400 border border-transparent transition-all">USD ($)</div>
-                                </label>
-                                <label class="currency-toggle cursor-pointer">
-                                    <input type="radio" name="inputCurrency" value="BRL" class="hidden" onchange="updateInputLabels()">
-                                    <div class="px-3 py-1 rounded text-xs font-bold text-slate-400 border border-transparent transition-all">BRL (R$)</div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <form id="sessionForm" onsubmit="handleSessionSubmit(event)" class="space-y-5">
-                            <div class="flex gap-6 mb-2 border-b border-slate-700 pb-4 overflow-x-auto">
-                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
-                                    <div class="relative flex items-center">
-                                        <input type="radio" name="recordType" value="grind" checked onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-blue-500 transition-all">
-                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                    </div>
-                                    <span class="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">Grind (Sessão)</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
-                                    <div class="relative flex items-center">
-                                        <input type="radio" name="recordType" value="deposit" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-emerald-500 transition-all">
-                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                    </div>
-                                    <span class="text-slate-300 text-sm font-medium group-hover:text-emerald-400 transition-colors">Depósito</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
-                                    <div class="relative flex items-center">
-                                        <input type="radio" name="recordType" value="withdraw" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-red-500 transition-all">
-                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
-                                    </div>
-                                    <span class="text-slate-300 text-sm font-medium group-hover:text-red-400 transition-colors">Saque</span>
-                                </label>
-                            </div>
-
-                            <div id="grindFields" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Data</label>
-                                    <input type="date" id="sDate" required class="w-full p-2.5 rounded input-dark">
+                            
+                            <!-- Core -->
+                            <div class="text-center p-3 rounded-xl bg-gradient-to-b from-primary-900/20 to-dark-950/50 border border-primary-500/20 relative transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary-500/10">
+                                <div class="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md">Main</div>
+                                <p class="text-[10px] uppercase font-bold text-primary-400 mb-1">Core</p>
+                                <p class="text-lg font-mono text-white font-bold" x-text="currentLevelObj.abiCore"></p>
+                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                                    <div class="h-full bg-primary-500" :style="'width: ' + currentLevelObj.pCore"></div>
                                 </div>
-                                <div>
-                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Local / Site</label>
-                                    <input type="text" id="sLocation" list="locationsList" placeholder="Ex: GGPoker" class="w-full p-2.5 rounded input-dark">
-                                    <datalist id="locationsList"></datalist>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Tipo de Jogo</label>
-                                    <select id="sContext" class="w-full p-2.5 rounded input-dark">
-                                        <option value="Online">Online MTT</option>
-                                        <option value="Live">Live MTT</option>
-                                        <option value="Cash">Cash Game</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Volume (Qtd Torneios)</label>
-                                    <input type="number" id="sVolume" placeholder="15" class="w-full p-2.5 rounded input-dark">
-                                </div>
-                                <div class="md:col-span-2 grid grid-cols-2 gap-5 p-5 bg-slate-800/30 rounded-lg border border-slate-700/50">
-                                    <div>
-                                        <label class="block text-xs text-red-400 mb-1 font-bold label-invested">Total Investido ($)</label>
-                                        <input type="number" step="0.01" id="sInvested" placeholder="0.00" class="w-full p-2.5 rounded bg-slate-900 border border-red-900/30 text-white focus:border-red-500 outline-none transition-colors">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs text-emerald-400 mb-1 font-bold label-return">Retorno Total ($)</label>
-                                        <input type="number" step="0.01" id="sReturn" placeholder="0.00" class="w-full p-2.5 rounded bg-slate-900 border border-emerald-900/30 text-white focus:border-emerald-500 outline-none transition-colors">
-                                    </div>
-                                </div>
+                                <p class="text-[9px] text-primary-400 mt-1" x-text="currentLevelObj.pCore"></p>
                             </div>
 
-                            <div id="transactionFields" class="hidden py-4">
-                                <label class="block text-xs text-slate-400 mb-2 font-bold label-amount">Valor da Transação ($)</label>
-                                <input type="number" step="0.01" id="sAmount" placeholder="0.00" class="w-full p-4 rounded input-dark text-xl font-bold font-mono">
+                            <!-- Shot -->
+                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
+                                <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Shot</p>
+                                <p class="text-sm font-mono text-red-300 font-bold" x-text="currentLevelObj.abiShot"></p>
+                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                                    <div class="h-full bg-red-500" :style="'width: ' + currentLevelObj.pShot"></div>
+                                </div>
+                                <p class="text-[9px] text-red-400 mt-1" x-text="currentLevelObj.pShot"></p>
                             </div>
-
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-lg transition-all transform active:scale-[0.98] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-check"></i> Registrar Sessão
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Tabela de Histórico -->
-                <div class="card overflow-hidden">
-                    <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-300 text-sm uppercase tracking-wider">Histórico Recente</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-900/50 text-xs uppercase text-slate-500 font-semibold">
-                                <tr>
-                                    <th class="p-4">Data</th>
-                                    <th class="p-4">Tipo</th>
-                                    <th class="p-4">Local</th>
-                                    <th class="p-4 text-right">Investido</th>
-                                    <th class="p-4 text-right">Retorno</th>
-                                    <th class="p-4 text-right">Lucro/Valor</th>
-                                    <th class="p-4 text-center">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody" class="divide-y divide-slate-700 text-sm font-medium"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div> <!-- Fim View Dashboard -->
-
-            <!-- VIEW: GRÁFICOS (Charts) -->
-            <div id="view-charts" class="hidden space-y-6 animate-slide">
-                <h2 class="text-2xl font-bold text-white mb-4">Análise de Performance</h2>
-                <div class="card p-4 h-96 relative">
-                    <h3 class="text-sm font-bold text-slate-400 absolute top-4 left-4">BANKROLL TOTAL</h3>
-                    <canvas id="mainChart"></canvas>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="card p-4 h-64">
-                        <h3 class="text-sm font-bold text-slate-400 mb-2">Volume Diário</h3>
-                        <canvas id="volumeChart"></canvas>
-                    </div>
-                    <div class="card p-4 h-64">
-                        <h3 class="text-sm font-bold text-slate-400 mb-2">Distribuição de Lucro (Local)</h3>
-                        <canvas id="locationChart"></canvas>
+                        </div>
+                        
+                        <div class="flex items-start gap-3 bg-dark-950/30 p-3 rounded-xl border border-white/5">
+                            <i class="fa-solid fa-lightbulb text-yellow-500 mt-0.5"></i>
+                            <p class="text-xs text-slate-300 italic" x-text="'&quot;' + currentLevelObj.rules + '&quot;'"></p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- VIEW: CONFIGURAÇÕES (Settings) -->
-            <div id="view-settings" class="hidden space-y-6 animate-slide">
-                <h2 class="text-2xl font-bold text-white mb-4">Painel de Controle</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="card p-6">
-                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-sliders"></i> Preferências</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm text-slate-400 mb-1">Nome do Jogador</label>
-                                <input type="text" id="cfgPlayerName" class="w-full p-2 rounded input-dark" onchange="saveSettings()" placeholder="Seu nome">
+            <!-- Main Content Grid -->
+            <div class="grid lg:grid-cols-3 gap-8">
+                
+                <!-- Left Column: Quick Stats -->
+                <div class="space-y-6">
+                    <!-- Gamification Card -->
+                    <div class="glass-card rounded-2xl p-6 cursor-pointer hover:bg-white/5 transition-colors group" @click="showLevels = true">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Status Atual</h3>
+                            <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-dark-950 font-bold shadow-lg shadow-orange-500/20">
+                                <i class="fa-solid fa-trophy"></i>
                             </div>
                             <div>
-                                <label class="block text-sm text-slate-400 mb-1">Banca Inicial ($)</label>
-                                <input type="number" step="0.01" id="cfgInitialBankroll" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
-                                <p class="text-xs text-slate-600 mt-1">Altere apenas se necessário. O padrão é $1010.32</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm text-red-400 mb-1 font-bold">Stop Loss Diário ($)</label>
-                                <input type="number" step="1" id="cfgStopLoss" class="w-full p-2 rounded bg-slate-900 border border-red-900/50 text-white" onchange="saveSettings()">
-                                <p class="text-xs text-slate-600 mt-1">Alerta se a perda diária exceder este valor.</p>
+                                <p class="text-2xl font-bold text-white" x-text="currentLevelObj.name"></p>
+                                <div class="flex items-center gap-2 text-xs text-slate-400">
+                                    <i class="fa-solid fa-fire text-orange-500"></i>
+                                    <span x-text="streak + ' dias seguidos'"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Configurações da Nuvem (Firebase) -->
-                    <div class="card p-6">
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
-                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-cloud text-blue-400"></i> Sincronização
-                            </h3>
-                            <span class="text-xs bg-emerald-900 text-emerald-200 px-2 py-1 rounded border border-emerald-500/50">NATIVO</span>
+                    <!-- KPI Grid -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
+                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-chart-simple mr-1"></i> Lucro</div>
+                            <div class="text-xl font-mono font-bold" :class="totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(totalProfit)"></div>
                         </div>
-                        <div class="space-y-4">
-                            <p class="text-xs text-slate-400">Este aplicativo está configurado nativamente com seu banco de dados Firebase.</p>
-                            <div class="flex items-center gap-2 mt-2">
-                                <div id="cloudIndicatorSettings" class="w-3 h-3 rounded-full bg-slate-600"></div>
-                                <span id="cloudStatusSettings" class="text-xs text-slate-400">Desconectado</span>
-                            </div>
-                            <!-- Campo Oculto/Legado para compatibilidade -->
-                            <div class="hidden">
-                                <textarea id="cfgFirebaseConfig" onchange="initCloudSync()"></textarea>
+                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
+                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-percent mr-1"></i> ROI</div>
+                            <div class="text-xl font-mono font-bold text-white" x-text="roi + '%'"></div>
+                        </div>
+                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
+                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-layer-group mr-1"></i> Volume</div>
+                            <div class="text-xl font-mono font-bold text-white" x-text="totalVolume"></div>
+                        </div>
+                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28 relative overflow-hidden group cursor-pointer" @click="activeTab = 'charts'; renderCharts()">
+                            <div class="text-slate-400 text-xs font-bold uppercase z-10 relative">Gráfico</div>
+                            <div class="absolute inset-0 opacity-30 group-hover:opacity-50 transition-opacity">
+                                <canvas id="miniChartEl"></canvas>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Dados e Segurança -->
-                    <div class="card p-6 md:col-span-2">
-                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-database"></i> Dados Locais</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
-                                <h4 class="font-bold text-slate-300 mb-2">Backup</h4>
-                                <button onclick="exportData()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-download"></i> Baixar .JSON
+                <!-- Center & Right: Action Area -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Input Form -->
+                    <div class="glass-card rounded-2xl p-1">
+                        <div class="bg-dark-900/80 p-6 rounded-xl">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                    <span class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-500"><i class="fa-solid fa-pen"></i></span>
+                                    Novo Registro
+                                </h3>
+                                
+                                <div class="bg-dark-950 p-1 rounded-lg border border-white/5 flex">
+                                    <button @click="inputCurrency = 'USD'" class="px-3 py-1 rounded-md text-xs font-bold transition-all" :class="inputCurrency === 'USD' ? 'bg-white/10 text-white shadow' : 'text-slate-500'">USD</button>
+                                    <button @click="inputCurrency = 'BRL'" class="px-3 py-1 rounded-md text-xs font-bold transition-all" :class="inputCurrency === 'BRL' ? 'bg-white/10 text-white shadow' : 'text-slate-500'">BRL</button>
+                                </div>
+                            </div>
+
+                            <form @submit.prevent="addSession" class="space-y-6">
+                                <!-- Type Selector -->
+                                <div class="flex gap-4 border-b border-white/5 pb-6">
+                                    <template x-for="type in [{id:'grind', l:'Grind', i:'fa-gamepad', c:'text-blue-400'}, {id:'deposit', l:'Depósito', i:'fa-arrow-up', c:'text-emerald-400'}, {id:'withdraw', l:'Saque', i:'fa-arrow-down', c:'text-red-400'}]">
+                                        <label class="cursor-pointer group">
+                                            <input type="radio" :value="type.id" x-model="form.type" class="hidden">
+                                            <div class="flex items-center gap-2 px-4 py-2 rounded-full border transition-all"
+                                                 :class="form.type === type.id ? 'bg-white/10 border-white/20 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'">
+                                                <i :class="['fa-solid', type.i, form.type === type.id ? type.c : '']"></i>
+                                                <span class="text-sm font-medium" x-text="type.l"></span>
+                                            </div>
+                                        </label>
+                                    </template>
+                                </div>
+
+                                <!-- Grind Fields -->
+                                <div x-show="form.type === 'grind'" class="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-bold text-slate-500 ml-1">Data</label>
+                                        <input type="date" x-model="form.date" required class="w-full p-3 rounded-xl glass-input">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-bold text-slate-500 ml-1">Local</label>
+                                        <input type="text" list="locationsList" x-model="form.location" class="w-full p-3 rounded-xl glass-input" placeholder="Ex: GGPoker">
+                                        <datalist id="locationsList"><template x-for="loc in settings.locations"><option :value="loc"></option></template></datalist>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-bold text-slate-500 ml-1">Jogo</label>
+                                        <select x-model="form.context" class="w-full p-3 rounded-xl glass-input appearance-none">
+                                            <option value="Online">Online MTT</option><option value="Live">Live MTT</option><option value="Cash">Cash Game</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-bold text-slate-500 ml-1">Qtd Torneios</label>
+                                        <input type="number" x-model.number="form.volume" class="w-full p-3 rounded-xl glass-input" placeholder="0">
+                                    </div>
+                                    
+                                    <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-dark-950/30 p-4 rounded-xl border border-white/5">
+                                        <div class="space-y-1">
+                                            <label class="text-xs font-bold text-red-400 ml-1" x-text="'Investido (' + currencySymbol + ')'"></label>
+                                            <input type="number" step="0.01" x-model.number="form.invested" class="w-full p-3 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all placeholder-white/20">
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="text-xs font-bold text-emerald-400 ml-1" x-text="'Retorno (' + currencySymbol + ')'"></label>
+                                            <input type="number" step="0.01" x-model.number="form.return" class="w-full p-3 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder-white/20">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Transaction Fields -->
+                                <div x-show="form.type !== 'grind'" class="animate-fade-in bg-dark-950/30 p-6 rounded-xl border border-white/5 text-center">
+                                    <label class="block text-sm font-bold text-slate-400 mb-2" x-text="'Valor da Transação (' + currencySymbol + ')'"></label>
+                                    <input type="number" step="0.01" x-model.number="form.amount" class="w-full max-w-[200px] mx-auto p-4 rounded-xl bg-transparent border-b-2 border-white/20 text-center text-3xl font-mono text-white focus:border-primary-500 outline-none placeholder-white/10" placeholder="0.00">
+                                </div>
+
+                                <button type="submit" class="w-full bg-gradient-to-r from-primary-600 to-blue-700 hover:from-primary-500 hover:to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-3 transition-all transform active:scale-[0.98]">
+                                    <i class="fa-solid fa-check"></i> <span x-text="form.type === 'grind' ? 'Registrar Sessão' : 'Confirmar Transação'"></span>
                                 </button>
-                            </div>
-                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
-                                <h4 class="font-bold text-slate-300 mb-2">Restaurar</h4>
-                                <label class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-upload"></i> Selecionar Arquivo
-                                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)">
-                                </label>
-                            </div>
-                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
-                                <h4 class="font-bold text-slate-300 mb-2">Memória</h4>
-                                <button onclick="clearLocations()" class="bg-slate-700 hover:bg-slate-600 text-yellow-500 text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-eraser"></i> Limpar Locais
-                                </button>
-                            </div>
+                            </form>
                         </div>
-                        <button onclick="clearAllData()" class="text-xs text-red-500 hover:text-red-400 underline w-full text-center mt-6">Apagar todos os dados (Reset de Fábrica)</button>
+                    </div>
+
+                    <!-- History Table -->
+                    <div class="glass-card rounded-2xl overflow-hidden">
+                        <div class="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-slate-300">Últimas Atividades</h3>
+                            <button class="text-xs text-slate-500 hover:text-white transition-colors">Ver tudo</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="text-xs uppercase text-slate-500 font-semibold bg-dark-950/30">
+                                    <tr><th class="p-4">Data</th><th class="p-4">Evento</th><th class="p-4">Local</th><th class="p-4 text-right">Resultado</th><th class="p-4 text-center"></th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5 text-sm">
+                                    <template x-for="s in sessions.slice().reverse().slice(0, 8)" :key="s.id">
+                                        <tr class="hover:bg-white/5 transition-colors group">
+                                            <td class="p-4 text-slate-400 font-mono text-xs" x-text="formatDate(s.date)"></td>
+                                            <td class="p-4">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-6 h-6 rounded flex items-center justify-center text-xs" 
+                                                         :class="{'grind':'bg-blue-500/10 text-blue-400', 'deposit':'bg-emerald-500/10 text-emerald-400', 'withdraw':'bg-red-500/10 text-red-400'}[s.type]">
+                                                        <i :class="{'grind':'fa-solid fa-gamepad', 'deposit':'fa-solid fa-arrow-up', 'withdraw':'fa-solid fa-arrow-down'}[s.type]"></i>
+                                                    </div>
+                                                    <span class="text-slate-200 capitalize" x-text="s.type"></span>
+                                                </div>
+                                            </td>
+                                            <td class="p-4 text-slate-400" x-text="s.location || '-'"></td>
+                                            <td class="p-4 text-right font-mono font-bold" :class="s.profit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(s.profit)"></td>
+                                            <td class="p-4 text-center">
+                                                <button @click="deleteSession(s.id)" class="w-8 h-8 rounded flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100">
+                                                    <i class="fa-solid fa-trash text-xs"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
 
-    <!-- FOOTER -->
-    <footer class="bg-slate-950 py-4 text-center text-xs text-slate-600 border-t border-slate-800">
-        Gestor de Bankroll Poker PRO v5.2 | Cloud Native
-    </footer>
+        <!-- VIEW: GRÁFICOS -->
+        <div x-show="activeTab === 'charts'" class="space-y-6" x-cloak>
+            <h2 class="text-2xl font-bold text-white mb-4">Análise Detalhada</h2>
+            <div class="glass-card p-6 rounded-2xl relative h-[400px]">
+                <canvas id="mainChartEl"></canvas>
+            </div>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass-card p-6 rounded-2xl h-80">
+                    <h3 class="text-sm font-bold text-slate-400 mb-4">Volume Mensal</h3>
+                    <canvas id="volumeChartEl"></canvas>
+                </div>
+                <div class="glass-card p-6 rounded-2xl h-80">
+                    <h3 class="text-sm font-bold text-slate-400 mb-4">Profit por Site</h3>
+                    <canvas id="locationChartEl"></canvas>
+                </div>
+            </div>
+        </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        // --- CONFIGURAÇÃO DE NÍVEIS (RPG SYSTEM) ---
-        const LEVELS = [
-            { id: 1, name: "Sobrevivente", min: 0, max: 600, color: "text-red-500", bg: "bg-red-500", border: "border-red-500", icon: "fa-skull", strategy: "Stop Loss rígido. Jogue torneios de até $2.00. Foco total em recuperar a base." },
-            { id: 2, name: "Aprendiz", min: 600, max: 900, color: "text-yellow-500", bg: "bg-yellow-500", border: "border-yellow-500", icon: "fa-graduation-cap", strategy: "Cautela. Max buy-in $5.00. Evite tiros e variantes exóticas." },
-            { id: 3, name: "Grinder", min: 900, max: 1400, color: "text-emerald-500", bg: "bg-emerald-500", border: "border-emerald-500", icon: "fa-seedling", strategy: "Zona de Conforto. ABI $4.50. Foco em volume e consistência." },
-            { id: 4, name: "Caçador", min: 1400, max: 2500, color: "text-blue-500", bg: "bg-blue-500", border: "border-blue-500", icon: "fa-crosshairs", strategy: "Ataque. Tiros controlados até $10.50. Comece a buscar a forra grande." },
-            { id: 5, name: "Profissional", min: 2500, max: 5000, color: "text-purple-500", bg: "bg-purple-500", border: "border-purple-500", icon: "fa-chess-king", strategy: "High Stakes. ABI $15+. Gestão profissional e estudo avançado." },
-            { id: 6, name: "Elite", min: 5000, max: 999999, color: "text-amber-400", bg: "bg-amber-400", border: "border-amber-400", icon: "fa-crown", strategy: "O topo da cadeia alimentar. Domine o field." }
-        ];
-
-        // --- BANCO DE DADOS NATIVO ---
-        const NATIVE_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyB0w_GcC2hmGh4B8tkya3DN-83h-B1ARFE",
-            authDomain: "pokermanager-2dd73.firebaseapp.com",
-            projectId: "pokermanager-2dd73",
-            storageBucket: "pokermanager-2dd73.firebasestorage.app",
-            messagingSenderId: "891651566275",
-            appId: "1:891651566275:web:8954015ae91e9268a21076",
-            measurementId: "G-Z22PMJLVBH"
-        };
-
-        // --- ESTADO GLOBAL ---
-        let appData = {
-            sessions: [],
-            settings: {
-                playerName: 'Jogador',
-                initialBankroll: 1010.32,
-                dailyStopLoss: 50,
-                manualRateEnabled: false,
-                manualRateValue: 5.00,
-                zoneComfort: 900,
-                zoneAttack: 1400,
-                locations: ['GGPoker', 'PokerStars', '888Poker', 'Live Home Game'],
-                firebaseConfig: JSON.stringify(NATIVE_FIREBASE_CONFIG, null, 2)
-            }
-        };
-
-        let liveCurrencyRate = 5.00; 
-        let activeRate = 5.00; 
-        let charts = {}; 
-        
-        let db = null;
-        let isCloudActive = false;
-        let isRemoteUpdate = false;
-
-        // --- INICIALIZAÇÃO ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            loadData();
-            document.getElementById('sDate').valueAsDate = new Date();
-            populateConfigFields();
-            initCloudSync(); // NATIVE CALL
-            await fetchCurrency(); 
-            updateUI();
-            updateLocationDatalist();
-        });
-
-        function populateConfigFields() {
-            document.getElementById('cfgInitialBankroll').value = appData.settings.initialBankroll;
-            document.getElementById('cfgStopLoss').value = appData.settings.dailyStopLoss;
-            document.getElementById('cfgPlayerName').value = appData.settings.playerName || '';
-            // New level configs might not be in UI but are in logic
-            // ...
-        }
-
-        // --- CORE FUNCTIONS ---
-
-        function loadData() {
-            try {
-                const saved = localStorage.getItem('poker_pro_data');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    appData = { ...appData, ...parsed, settings: { ...appData.settings, ...(parsed.settings || {}) } };
-                }
-                
-                // Forçar configuração nativa se estiver vazia
-                if (!appData.settings.firebaseConfig || appData.settings.firebaseConfig.trim() === "") {
-                    appData.settings.firebaseConfig = JSON.stringify(NATIVE_FIREBASE_CONFIG, null, 2);
-                }
-            } catch (e) {
-                console.error("Erro ao carregar dados locais:", e);
-            }
-        }
-
-        function saveData() {
-            localStorage.setItem('poker_pro_data', JSON.stringify(appData));
-            updateUI();
-            if(isCloudActive && !isRemoteUpdate) {
-                pushToCloud();
-            }
-        }
-
-        // --- CLOUD SYNC (NATIVE) ---
-        function initCloudSync() {
-            try {
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(NATIVE_FIREBASE_CONFIG);
-                }
-                
-                db = firebase.firestore();
-                
-                firebase.auth().signInAnonymously().then(() => {
-                    console.log("Logado no Firebase Nativo");
-                    isCloudActive = true;
-                    updateCloudUI('Online', 'bg-emerald-500', 'text-emerald-400');
-                    startCloudListener();
-                }).catch((error) => {
-                    console.error("Erro Auth Firebase:", error);
-                    updateCloudUI('Erro Auth', 'bg-red-500', 'text-red-400');
-                });
-
-            } catch (e) {
-                console.error("Erro Config Firebase:", e);
-                updateCloudUI('Erro Config', 'bg-red-500', 'text-red-400');
-                isCloudActive = false;
-            }
-        }
-
-        function updateCloudUI(status, dotColor, textColor) {
-            const cloudStatus = document.getElementById('cloudStatus');
-            const cloudText = document.getElementById('cloudStatusText');
-            if(isCloudActive) {
-                cloudStatus.classList.remove('hidden');
-                cloudStatus.className = `flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-800 border border-${dotColor.split('-')[1]}-500/50 ${textColor}`;
-                cloudText.innerText = status;
-            }
-            document.getElementById('cloudIndicatorSettings').className = `w-3 h-3 rounded-full ${dotColor}`;
-            document.getElementById('cloudStatusSettings').innerText = status;
-            document.getElementById('cloudStatusSettings').className = `text-xs ${textColor}`;
-        }
-
-        function startCloudListener() {
-            db.collection("bankrolls").doc("user_default").onSnapshot((doc) => {
-                if (doc.exists) {
-                    const cloudData = doc.data();
-                    const currentLocalStr = JSON.stringify(appData.sessions);
-                    const cloudSessionsStr = JSON.stringify(cloudData.sessions);
-
-                    if (currentLocalStr !== cloudSessionsStr) {
-                        console.log("Nuvem atualizada. Sincronizando...");
-                        isRemoteUpdate = true; 
-                        appData.sessions = cloudData.sessions || [];
-                        // Merge important settings, ignore others
-                        if(cloudData.settings) {
-                            appData.settings.initialBankroll = cloudData.settings.initialBankroll;
-                            // ... map other synced settings
-                        }
-                        saveData(); 
-                        updateUI();
-                        isRemoteUpdate = false;
-                    }
-                } else {
-                    pushToCloud();
-                }
-            });
-        }
-
-        function pushToCloud() {
-            if(!db || !isCloudActive) return;
-            const payload = JSON.parse(JSON.stringify(appData));
-            // Ensure no sensitive/large unrelated data is pushed if we had any
-            db.collection("bankrolls").doc("user_default").set(payload)
-                .then(() => console.log("Dados enviados."))
-                .catch((e) => console.error(e));
-        }
-
-        // --- CURRENCY & SETTINGS ---
-        async function fetchCurrency() {
-            try {
-                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-                const data = await res.json();
-                liveCurrencyRate = data.rates.BRL;
-            } catch (e) { }
-            updateRateDisplay();
-        }
-
-        function updateRateDisplay() {
-            activeRate = appData.settings.manualRateEnabled ? (parseFloat(appData.settings.manualRateValue) || liveCurrencyRate) : liveCurrencyRate;
-            document.getElementById('usdRate').innerText = `USD: R$ ${activeRate.toFixed(2)}`;
-            const currentBankrollUSD = calculateCurrentBankroll();
-            document.getElementById('headerBankrollBRL').innerText = formatCurrencyBRL(currentBankrollUSD * activeRate);
-            document.getElementById('panoramaBRL').innerText = `≈ ${formatCurrencyBRL(currentBankrollUSD * activeRate)}`;
-        }
-        
-        function calculateCurrentBankroll() {
-            let bal = appData.settings.initialBankroll;
-            if (appData.sessions && Array.isArray(appData.sessions)) {
-                appData.sessions.forEach(s => bal += s.profit);
-            }
-            return bal;
-        }
-
-        function switchTab(tabName) {
-            ['dashboard', 'charts', 'settings'].forEach(v => {
-                document.getElementById(`view-${v}`).classList.add('hidden');
-                document.getElementById(`tab-${v}`).classList.remove('active');
-            });
-            document.getElementById(`view-${tabName}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            if (tabName === 'charts') renderFullCharts();
-        }
-
-        function toggleFormMode() {
-            const type = document.querySelector('input[name="recordType"]:checked').value;
-            const grindFields = document.getElementById('grindFields');
-            const transactionFields = document.getElementById('transactionFields');
-            if (type === 'grind') {
-                grindFields.classList.remove('hidden');
-                transactionFields.classList.add('hidden');
-            } else {
-                grindFields.classList.add('hidden');
-                transactionFields.classList.remove('hidden');
-            }
-        }
-        
-        function updateInputLabels() {
-            const currency = document.querySelector('input[name="inputCurrency"]:checked').value;
-            const symbol = currency === 'USD' ? '$' : 'R$';
-            document.querySelector('.label-invested').innerText = `Total Investido (${symbol})`;
-            document.querySelector('.label-return').innerText = `Retorno Total (${symbol})`;
-            document.querySelector('.label-amount').innerText = `Valor da Transação (${symbol})`;
-        }
-
-        // --- LÓGICA DE NEGÓCIO ---
-        function handleSessionSubmit(e) {
-            e.preventDefault();
-            const type = document.querySelector('input[name="recordType"]:checked').value;
-            const currency = document.querySelector('input[name="inputCurrency"]:checked').value;
-            const date = document.getElementById('sDate').value;
-            
-            const convert = (val) => (currency === 'BRL') ? val / activeRate : val;
-            
-            let newEntry = { id: Date.now(), date: date, type: type, originalCurrency: currency };
-
-            if (type === 'grind') {
-                newEntry.location = document.getElementById('sLocation').value || 'Online';
-                newEntry.context = document.getElementById('sContext').value;
-                newEntry.volume = parseInt(document.getElementById('sVolume').value) || 0;
-                const investedInput = parseFloat(document.getElementById('sInvested').value) || 0;
-                const returnInput = parseFloat(document.getElementById('sReturn').value) || 0;
-                newEntry.invested = convert(investedInput);
-                newEntry.return = convert(returnInput);
-                newEntry.profit = newEntry.return - newEntry.invested;
-                if (!appData.settings.locations.includes(newEntry.location)) {
-                    appData.settings.locations.push(newEntry.location);
-                    updateLocationDatalist();
-                }
-                checkStopLoss(newEntry.profit, date);
-            } else {
-                const amountInput = parseFloat(document.getElementById('sAmount').value) || 0;
-                const amountUSD = convert(amountInput);
-                newEntry.location = type === 'deposit' ? 'Depósito' : 'Saque';
-                newEntry.profit = type === 'deposit' ? amountUSD : -amountUSD;
-                newEntry.invested = 0; newEntry.return = 0;
-            }
-
-            appData.sessions.push(newEntry);
-            saveData();
-            e.target.reset();
-            document.getElementById('sDate').valueAsDate = new Date();
-            document.querySelector('input[value="grind"]').checked = true;
-            toggleFormMode();
-        }
-
-        function checkStopLoss(profit, date) {
-            if (profit >= 0) return;
-            const todaysLoss = appData.sessions.filter(s => s.date === date && s.type === 'grind').reduce((acc, curr) => acc + curr.profit, 0) + profit; 
-            const limit = -Math.abs(appData.settings.dailyStopLoss);
-            if (todaysLoss <= limit) {
-                document.getElementById('stopLossValueDisplay').innerText = formatCurrency(Math.abs(todaysLoss));
-                document.getElementById('stopLossOverlay').classList.remove('hidden');
-            }
-        }
-
-        function closeStopLoss() { document.getElementById('stopLossOverlay').classList.add('hidden'); }
-
-        function deleteSession(id) {
-            if (confirm("Apagar este registro?")) {
-                appData.sessions = appData.sessions.filter(s => s.id !== id);
-                saveData();
-            }
-        }
-
-        function saveSettings() {
-            appData.settings.initialBankroll = parseFloat(document.getElementById('cfgInitialBankroll').value);
-            appData.settings.dailyStopLoss = parseFloat(document.getElementById('cfgStopLoss').value);
-            appData.settings.playerName = document.getElementById('cfgPlayerName').value;
-            // No need to save firebase config manually anymore
-            saveData();
-            updateRateDisplay();
-        }
-
-        function clearLocations() {
-            if (confirm("Limpar lista de locais salvos?")) {
-                appData.settings.locations = ['GGPoker'];
-                saveData();
-                updateLocationDatalist();
-            }
-        }
-
-        // --- RPG SYSTEM ---
-        function toggleLevelsModal() {
-            const modal = document.getElementById('levelsModal');
-            if (modal.classList.contains('active')) {
-                modal.classList.remove('active');
-            } else {
-                renderLevelsModal(calculateCurrentBankroll());
-                modal.classList.add('active');
-            }
-        }
-
-        function renderLevelsModal(currentBankroll) {
-            const container = document.getElementById('levelsContainer');
-            container.innerHTML = '';
-            LEVELS.forEach(lvl => {
-                const isCurrent = currentBankroll >= lvl.min && currentBankroll < lvl.max;
-                const isPast = currentBankroll >= lvl.max;
-                const isLocked = currentBankroll < lvl.min;
-                let statusClass = isLocked ? 'locked bg-slate-800/50' : (isCurrent ? 'current bg-slate-800 border-2' : 'bg-slate-800/80');
-                let borderColor = isLocked ? 'border-slate-700' : lvl.border;
-                const progress = Math.min(100, Math.max(0, ((currentBankroll - lvl.min) / (lvl.max - lvl.min)) * 100));
-                const html = `
-                    <div class="level-card ${statusClass} rounded-xl p-5 relative overflow-hidden ${borderColor}">
-                        ${isCurrent ? `<div class="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg uppercase">Nível Atual</div>` : ''}
-                        <div class="flex items-start gap-4">
-                            <div class="p-4 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center w-16 h-16 shrink-0"><i class="fa-solid ${lvl.icon} ${isLocked ? 'text-slate-600' : lvl.color} text-2xl"></i></div>
-                            <div class="flex-grow">
-                                <h3 class="text-xl font-bold text-white mb-1">${lvl.name}</h3>
-                                <p class="text-xs text-slate-400 font-mono mb-3 uppercase tracking-wider">Range: ${formatCurrency(lvl.min)} - ${lvl.max > 99999 ? '∞' : formatCurrency(lvl.max)}</p>
-                                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-3"><p class="text-sm text-slate-300"><strong class="${lvl.color}">Estratégia:</strong> ${lvl.strategy}</p></div>
-                                ${!isLocked ? `<div class="relative pt-1"><div class="flex mb-1 items-center justify-between"><span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${isCurrent ? 'text-blue-200 bg-blue-900' : 'text-slate-400 bg-slate-800'}">${isPast ? 'Concluído' : `${progress.toFixed(1)}% Completo`}</span></div><div class="overflow-hidden h-2 text-xs flex rounded bg-slate-900"><div style="width:${isPast ? 100 : progress}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${lvl.bg}"></div></div></div>` : `<div class="flex items-center gap-2 text-slate-500 text-sm mt-2"><i class="fa-solid fa-lock"></i> Bloqueado</div>`}
-                            </div>
+        <!-- VIEW: SETTINGS -->
+        <div x-show="activeTab === 'settings'" class="space-y-6 max-w-4xl mx-auto" x-cloak>
+            <h2 class="text-2xl font-bold text-white mb-4">Ajustes</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass-card p-8 rounded-2xl space-y-6">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4">
+                        <i class="fa-solid fa-user-gear text-slate-400"></i> Perfil do Jogador
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Nome</label>
+                            <input type="text" x-model="settings.playerName" @change="saveLocal()" class="w-full p-3 rounded-xl glass-input mt-1">
                         </div>
-                    </div>`;
-                container.innerHTML += html;
-            });
-        }
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Bankroll Inicial ($)</label>
+                            <input type="number" step="0.01" x-model.number="settings.initialBankroll" @change="saveLocal()" class="w-full p-3 rounded-xl glass-input mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-red-400 uppercase">Stop Loss Diário ($)</label>
+                            <input type="number" x-model.number="settings.dailyStopLoss" @change="saveLocal()" class="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-white mt-1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-8 rounded-2xl space-y-6 flex flex-col">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4">
+                        <i class="fa-solid fa-database text-slate-400"></i> Gestão de Dados
+                    </h3>
+                    <div class="flex-grow space-y-4">
+                        <button @click="exportData()" class="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium flex items-center justify-center gap-2 transition-colors border border-white/5">
+                            <i class="fa-solid fa-download"></i> Backup (JSON)
+                        </button>
+                        <label class="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium flex items-center justify-center gap-2 transition-colors border border-white/5 cursor-pointer">
+                            <i class="fa-solid fa-upload"></i> Restaurar Dados
+                            <input type="file" @change="importData($event)" class="hidden" accept=".json">
+                        </label>
+                    </div>
+                    <button @click="resetAll()" class="text-xs text-red-500 hover:text-red-400 hover:underline mt-auto text-center w-full">
+                        Resetar Fábrica (Apagar Tudo)
+                    </button>
+                </div>
+            </div>
+        </div>
 
-        // --- UI & CHARTS ---
-        function updateUI() {
-            if (!appData.sessions) appData.sessions = [];
-            appData.sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
-            let currentBankroll = appData.settings.initialBankroll;
-            let totalProfit = 0, totalInvested = 0, totalVolume = 0;
-            appData.sessions.forEach(s => {
-                currentBankroll += s.profit;
-                if (s.type === 'grind') { totalProfit += s.profit; totalInvested += s.invested; totalVolume += s.volume; }
-            });
-            const roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-            const abi = totalVolume > 0 ? totalInvested / totalVolume : 0;
-
-            document.getElementById('playerNameDisplay').innerText = appData.settings.playerName ? `${appData.settings.playerName}:` : 'Jogador:';
-            document.getElementById('headerBankrollUSD').innerText = formatCurrency(currentBankroll);
-            document.getElementById('headerBankrollBRL').innerText = formatCurrencyBRL(currentBankroll * activeRate);
-            document.getElementById('panoramaBankroll').innerText = formatCurrency(currentBankroll);
-            document.getElementById('panoramaBRL').innerText = `≈ ${formatCurrencyBRL(currentBankroll * activeRate)}`;
-            document.getElementById('dashProfit').innerText = formatCurrency(totalProfit);
-            document.getElementById('dashProfit').className = `text-lg font-mono font-bold ${totalProfit >= 0 ? 'text-poker-green' : 'text-poker-red'}`;
-            document.getElementById('dashROI').innerText = roi.toFixed(1) + '%';
-            document.getElementById('dashABI').innerText = formatCurrency(abi);
-            document.getElementById('dashVolume').innerText = totalVolume;
-
-            updatePanoramaLogic(currentBankroll);
-            renderTable();
-            renderMiniChart(appData.settings.initialBankroll);
-        }
-
-        function updatePanoramaLogic(bankroll) {
-            const currentLevel = LEVELS.find(l => bankroll >= l.min && bankroll < l.max) || LEVELS[LEVELS.length - 1];
-            const nextLevel = LEVELS[LEVELS.indexOf(currentLevel) + 1];
-            
-            const card = document.getElementById('panoramaCard');
-            const badge = document.getElementById('zoneBadge');
-            const bar = document.getElementById('zoneProgressBar');
-            let colorClass = `border-l-${currentLevel.color.split('-')[1]}-500`; 
-            if(currentLevel.id === 1) colorClass = "border-l-red-500 bg-gradient-to-r from-slate-900 to-red-900/10";
-            if(currentLevel.id === 2) colorClass = "border-l-yellow-500 bg-gradient-to-r from-slate-900 to-yellow-900/10";
-            if(currentLevel.id === 3) colorClass = "border-l-emerald-500 bg-gradient-to-r from-slate-900 to-emerald-900/10";
-            if(currentLevel.id === 4) colorClass = "border-l-blue-500 bg-gradient-to-r from-slate-900 to-blue-900/10";
-            if(currentLevel.id === 5) colorClass = "border-l-purple-500 bg-gradient-to-r from-slate-900 to-purple-900/10";
-            if(currentLevel.id === 6) colorClass = "border-l-amber-400 bg-gradient-to-r from-slate-900 to-amber-400/10";
-
-            card.className = `card p-6 md:p-8 relative overflow-hidden transition-colors duration-500 border-l-4 ${colorClass}`;
-            badge.innerText = currentLevel.name.toUpperCase();
-            
-            let progress = nextLevel ? ((bankroll - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100 : 100;
-            bar.style.width = `${Math.max(5, progress)}%`;
-            bar.className = `h-full ${currentLevel.bg} transition-all duration-1000`;
-
-            let abiText = "$0.25 - $2.00";
-            if(currentLevel.id === 2) abiText = "Max $5.00";
-            if(currentLevel.id === 3) abiText = "$4.50 - $5.50";
-            if(currentLevel.id === 4) abiText = "$8.88 - $10.50";
-            if(currentLevel.id === 5) abiText = "$15.00 - $25.00";
-            if(currentLevel.id === 6) abiText = "$50.00+";
-            document.getElementById('panoramaABI').innerText = abiText;
-            document.getElementById('panoramaQuote').innerText = `"${currentLevel.strategy}"`;
-
-            document.getElementById('currentLevelName').innerText = currentLevel.name;
-            document.getElementById('miniXpBar').style.width = `${Math.max(5, progress)}%`;
-            document.getElementById('miniXpBar').className = `h-1.5 rounded-full ${currentLevel.bg}`;
-            document.getElementById('nextLevelTarget').innerText = nextLevel ? formatCurrency(currentLevel.max) : "MAX";
-            calculateStreak();
-        }
-
-        function calculateStreak() {
-            if (!appData.sessions) return;
-            const dates = [...new Set(appData.sessions.filter(s => s.type === 'grind').map(s => s.date))].sort();
-            let streak = 0;
-            let today = new Date().toISOString().split('T')[0];
-            let yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            if (!dates.includes(today) && !dates.includes(yesterday)) streak = 0;
-            else {
-                let currentCheck = dates.includes(today) ? new Date() : new Date(Date.now() - 86400000);
-                while (true) {
-                    const dateStr = currentCheck.toISOString().split('T')[0];
-                    if (dates.includes(dateStr)) { streak++; currentCheck.setDate(currentCheck.getDate() - 1); }
-                    else break;
-                }
-            }
-            document.getElementById('streakCount').innerText = streak;
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('historyTableBody');
-            tbody.innerHTML = '';
-            if (!appData.sessions) return;
-            const recent = [...appData.sessions].reverse().slice(0, 8); 
-            recent.forEach(s => {
-                let colorClass = s.profit >= 0 ? 'text-emerald-400' : 'text-red-400';
-                let typeIcon = s.type === 'grind' ? '<i class="fa-solid fa-gamepad text-slate-500"></i>' : 
-                               s.type === 'deposit' ? '<i class="fa-solid fa-arrow-up text-emerald-500"></i>' : 
-                               '<i class="fa-solid fa-arrow-down text-red-500"></i>';
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-800 transition-colors border-b border-slate-800";
-                tr.innerHTML = `
-                    <td class="p-4 text-slate-400 font-mono text-xs">${formatDate(s.date)}</td>
-                    <td class="p-4 text-slate-300 flex items-center gap-2">${typeIcon} <span class="capitalize">${s.type}</span></td>
-                    <td class="p-4 text-slate-300">${s.location || '-'}</td>
-                    <td class="p-4 text-right text-slate-500">${s.invested > 0 ? formatCurrency(s.invested) : '-'}</td>
-                    <td class="p-4 text-right text-slate-500">${s.return > 0 ? formatCurrency(s.return) : '-'}</td>
-                    <td class="p-4 text-right font-bold ${colorClass}">${formatCurrency(s.profit)}</td>
-                    <td class="p-4 text-center"><button onclick="deleteSession(${s.id})" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash"></i></button></td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // --- UTILS ---
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
-            const node = document.createElement('a');
-            node.setAttribute("href", dataStr);
-            node.setAttribute("download", "poker_bankroll_backup.json");
-            document.body.appendChild(node); node.click(); node.remove();
-        }
-        function importData(input) {
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) { appData = JSON.parse(e.target.result); saveData(); location.reload(); };
-            reader.readAsText(file);
-        }
-        function clearAllData() { if(confirm("Reset total?")) { localStorage.removeItem('poker_pro_data'); location.reload(); } }
-        function updateLocationDatalist() {
-            const list = document.getElementById('locationsList');
-            if(!list) return;
-            list.innerHTML = '';
-            if (appData.settings && appData.settings.locations) appData.settings.locations.forEach(loc => { const opt = document.createElement('option'); opt.value = loc; list.appendChild(opt); });
-        }
-        function renderMiniChart(initial) {
-            const ctx = document.getElementById('miniChart').getContext('2d');
-            if (charts.mini) charts.mini.destroy();
-            let balance = initial;
-            const data = [initial]; const labels = ['Início'];
-            if (appData.sessions) appData.sessions.forEach(s => { balance += s.profit; data.push(balance); labels.push(formatDate(s.date)); });
-            charts.mini = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Bankroll', data: data, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
-        }
-        function renderFullCharts() {
-            const ctxMain = document.getElementById('mainChart').getContext('2d');
-            if (charts.main) charts.main.destroy();
-            let balance = appData.settings.initialBankroll;
-            const dataMain = [balance]; const labelsMain = ['Início'];
-            if (appData.sessions) appData.sessions.forEach(s => { balance += s.profit; dataMain.push(balance); labelsMain.push(formatDate(s.date)); });
-            charts.main = new Chart(ctxMain, { type: 'line', data: { labels: labelsMain, datasets: [{ label: 'Evolução do Bankroll ($)', data: dataMain, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } } });
-            // Add Volume and Location logic...
-        }
-        function formatCurrency(val) { return '$' + val.toFixed(2); }
-        function formatCurrencyBRL(val) { return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-        function formatDate(str) { if(!str) return ''; const [y,m,d] = str.split('-'); return `${d}/${m}`; }
-    </script>
+    </main>
 </body>
 </html>
