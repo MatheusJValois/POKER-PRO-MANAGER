@@ -93,7 +93,7 @@
         .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 
-    <!-- LÓGICA (Atualizada com a tabela CSV) -->
+    <!-- LÓGICA -->
     <script>
         const LEVELS_CFG = [
             { 
@@ -155,306 +155,294 @@
         ];
 
         document.addEventListener('alpine:init', () => {
-            Alpine.data('pokerApp', () => ({
-                activeTab: 'dashboard',
-                sessions: [],
-                settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'], syncId: 'minha-banca-pko' },
-                form: { date: new Date().toISOString().split('T')[0], type: 'grind', location: '', context: 'Online', volume: '', invested: '', return: '', amount: '' },
-                inputCurrency: 'USD',
-                currencyRate: 5.0,
-                showStopLoss: false,
-                showLevels: false,
-                cloudStatus: { connected: false, text: 'Offline', msg: 'Conectando...' },
-                isRemoteUpdate: false,
-                levels: LEVELS_CFG,
-                charts: { main: null, volume: null, location: null, mini: null },
+            Alpine.data('pokerApp', () => {
+                // Instâncias dos gráficos FORA do objeto reativo para evitar loops e crashes
+                let _chartInstances = { main: null, volume: null, location: null, mini: null };
 
-                init() {
-                    const saved = localStorage.getItem('poker_pro_v7_pko');
-                    if(saved) {
-                        try {
-                            const data = JSON.parse(saved);
-                            this.sessions = data.sessions || [];
-                            if (data.settings) this.settings = {...this.settings, ...data.settings};
-                            if (!this.settings.syncId) this.settings.syncId = 'minha-banca-pko';
-                        } catch(e) { console.error("Erro ao carregar", e); }
-                    }
-                    
-                    fetch('https://api.exchangerate-api.com/v4/latest/USD')
-                        .then(r => r.json()).then(d => this.currencyRate = d.rates.BRL).catch(e => console.log('Erro Cotação'));
+                return {
+                    activeTab: 'dashboard',
+                    sessions: [],
+                    settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'], syncId: 'minha-banca-pko' },
+                    form: { date: new Date().toISOString().split('T')[0], type: 'grind', location: '', context: 'Online', volume: '', invested: '', return: '', amount: '' },
+                    inputCurrency: 'USD',
+                    currencyRate: 5.0,
+                    showStopLoss: false,
+                    showLevels: false,
+                    cloudStatus: { connected: false, text: 'Offline', msg: 'Conectando...' },
+                    isRemoteUpdate: false,
+                    levels: LEVELS_CFG,
 
-                    if(window.startCloud) window.startCloud(this);
-                    else window.addEventListener('firebase-ready', () => { if(window.startCloud) window.startCloud(this); });
-                    
-                    // Watcher para troca de abas e limpeza de gráficos
-                    this.$watch('activeTab', (val) => {
-                        if (val === 'dashboard') {
-                            this.destroyCharts(['main', 'volume', 'location']);
-                            this.renderMiniChart();
-                        } else if (val === 'charts') {
-                            this.destroyCharts(['mini']);
-                            this.renderCharts();
+                    init() {
+                        const saved = localStorage.getItem('poker_pro_v7_pko');
+                        if(saved) {
+                            try {
+                                const data = JSON.parse(saved);
+                                this.sessions = data.sessions || [];
+                                if (data.settings) this.settings = {...this.settings, ...data.settings};
+                                if (!this.settings.syncId) this.settings.syncId = 'minha-banca-pko';
+                            } catch(e) { console.error("Erro ao carregar", e); }
+                        }
+                        
+                        fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                            .then(r => r.json()).then(d => this.currencyRate = d.rates.BRL).catch(e => console.log('Erro Cotação'));
+
+                        if(window.startCloud) window.startCloud(this);
+                        else window.addEventListener('firebase-ready', () => { if(window.startCloud) window.startCloud(this); });
+                        
+                        // Watcher para troca de abas e renderização limpa
+                        this.$watch('activeTab', (val) => {
+                            // Limpa gráficos antigos para evitar conflitos de contexto
+                            Object.keys(_chartInstances).forEach(k => {
+                                if (_chartInstances[k]) {
+                                    _chartInstances[k].destroy();
+                                    _chartInstances[k] = null;
+                                }
+                            });
+
+                            if (val === 'dashboard') {
+                                this.$nextTick(() => this.renderMiniChart());
+                            } else if (val === 'charts') {
+                                this.$nextTick(() => this.renderCharts());
+                            }
+                        });
+
+                        this.$watch('sessions', () => { 
+                            if(this.activeTab === 'charts') this.renderCharts();
+                            if(this.activeTab === 'dashboard') this.renderMiniChart();
+                        });
+                        
+                        // Render inicial
+                        setTimeout(() => this.renderMiniChart(), 500);
+                    },
+
+                    get bankroll() { return this.settings.initialBankroll + this.sessions.reduce((acc, s) => acc + (s.profit || 0), 0); },
+                    get totalProfit() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0); },
+                    get totalInvested() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0); },
+                    get totalVolume() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.volume || 0), 0); },
+                    get roi() { return this.totalInvested > 0 ? ((this.totalProfit / this.totalInvested) * 100).toFixed(1) : 0; },
+                    get abi() { return this.totalVolume > 0 ? (this.totalInvested / this.totalVolume) : 0; },
+                    get currencySymbol() { return this.inputCurrency === 'USD' ? '$' : 'R$'; },
+                    get todaysLoss() {
+                        const today = new Date().toISOString().split('T')[0];
+                        const loss = this.sessions.filter(s => s.date === today && s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0);
+                        return loss < 0 ? Math.abs(loss) : 0;
+                    },
+                    get currentLevelObj() { return this.levels.find(l => this.bankroll >= l.min && this.bankroll < l.max) || this.levels[this.levels.length-1]; },
+                    get nextLevelTarget() {
+                        const idx = this.levels.indexOf(this.currentLevelObj);
+                        return this.levels[idx+1] ? this.formatMoney(this.levels[idx+1].min) : 'MAX';
+                    },
+                    get levelProgress() {
+                        const lvl = this.currentLevelObj;
+                        const next = this.levels[this.levels.indexOf(lvl)+1];
+                        if(!next) return 100;
+                        return Math.min(100, Math.max(0, ((this.bankroll - lvl.min) / (next.min - lvl.min)) * 100));
+                    },
+                    get streak() {
+                        const dates = [...new Set(this.sessions.filter(s => s.type === 'grind').map(s => s.date))].sort();
+                        if(dates.length === 0) return 0;
+                        let streak = 0, check = new Date();
+                        const hasToday = dates.includes(check.toISOString().split('T')[0]);
+                        if(!hasToday) check.setDate(check.getDate() - 1);
+                        while(true) {
+                            const dateStr = check.toISOString().split('T')[0];
+                            if(dates.includes(dateStr)) { streak++; check.setDate(check.getDate()-1); } else break;
+                        }
+                        return streak;
+                    },
+
+                    addSession() {
+                        const f = this.form;
+                        const mult = this.inputCurrency === 'BRL' ? (1/this.currencyRate) : 1;
+                        let session = {
+                            id: Date.now(),
+                            date: f.date, type: f.type,
+                            location: f.type === 'grind' ? (f.location || 'Online') : (f.type === 'deposit' ? 'Depósito' : 'Saque')
+                        };
+                        if(f.type === 'grind') {
+                            session.volume = f.volume || 0;
+                            session.invested = (f.invested || 0) * mult;
+                            session.return = (f.return || 0) * mult;
+                            session.profit = session.return - session.invested;
+                            session.context = f.context;
+                            if(session.profit < 0 && (this.todaysLoss + Math.abs(session.profit)) >= this.settings.dailyStopLoss) this.showStopLoss = true;
+                            if(session.location && !this.settings.locations.includes(session.location)) this.settings.locations.push(session.location);
                         } else {
-                            this.destroyCharts(['mini', 'main', 'volume', 'location']);
+                            const val = (f.amount || 0) * mult;
+                            session.profit = f.type === 'deposit' ? val : -val;
+                            session.invested = 0; session.return = 0;
                         }
-                    });
+                        this.sessions.push(session); this.saveLocal();
+                        this.form.invested = ''; this.form.return = ''; this.form.amount = '';
+                    },
+                    deleteSession(id) { if(confirm('Apagar registro?')) { this.sessions = this.sessions.filter(s => s.id !== id); this.saveLocal(); } },
+                    saveLocal(sync = true) {
+                        localStorage.setItem('poker_pro_v7_pko', JSON.stringify({ sessions: this.sessions, settings: this.settings }));
+                        if(sync && this.pushToCloud) this.pushToCloud();
+                    },
+                    formatMoney(val) { return '$' + (val || 0).toFixed(2); },
+                    formatBRL(val) { return 'R$ ' + ((val || 0) * this.currencyRate).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
+                    formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}`; },
+                    isCurrentLevel(l) { return this.currentLevelObj.id === l.id; },
+                    isLocked(l) { return this.bankroll < l.min; },
+                    exportData() {
+                        const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({sessions: this.sessions, settings: this.settings}));
+                        const node = document.createElement('a'); node.setAttribute("href", str); node.setAttribute("download", "bankroll_backup.json");
+                        document.body.appendChild(node); node.click(); node.remove();
+                    },
+                    importData(e) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                            try {
+                                const d = JSON.parse(evt.target.result);
+                                this.sessions = d.sessions || [];
+                                if(d.settings) this.settings = d.settings;
+                                this.saveLocal(); location.reload();
+                            } catch(err) { alert('Arquivo inválido'); }
+                        };
+                        reader.readAsText(e.target.files[0]);
+                    },
+                    resetAll() { if(confirm("Tem certeza absoluta?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
+                    
+                    // --- FUNÇÕES DE GRÁFICO (Usando _chartInstances privado) ---
 
-                    this.$watch('sessions', () => { this.updateCharts(); });
-                    setTimeout(() => this.renderMiniChart(), 500);
-                },
-
-                get bankroll() { return this.settings.initialBankroll + this.sessions.reduce((acc, s) => acc + (s.profit || 0), 0); },
-                get totalProfit() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0); },
-                get totalInvested() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0); },
-                get totalVolume() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.volume || 0), 0); },
-                get roi() { return this.totalInvested > 0 ? ((this.totalProfit / this.totalInvested) * 100).toFixed(1) : 0; },
-                get abi() { return this.totalVolume > 0 ? (this.totalInvested / this.totalVolume) : 0; },
-                get currencySymbol() { return this.inputCurrency === 'USD' ? '$' : 'R$'; },
-                get todaysLoss() {
-                    const today = new Date().toISOString().split('T')[0];
-                    const loss = this.sessions.filter(s => s.date === today && s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0);
-                    return loss < 0 ? Math.abs(loss) : 0;
-                },
-                get currentLevelObj() { return this.levels.find(l => this.bankroll >= l.min && this.bankroll < l.max) || this.levels[this.levels.length-1]; },
-                get nextLevelTarget() {
-                    const idx = this.levels.indexOf(this.currentLevelObj);
-                    return this.levels[idx+1] ? this.formatMoney(this.levels[idx+1].min) : 'MAX';
-                },
-                get levelProgress() {
-                    const lvl = this.currentLevelObj;
-                    const next = this.levels[this.levels.indexOf(lvl)+1];
-                    if(!next) return 100;
-                    return Math.min(100, Math.max(0, ((this.bankroll - lvl.min) / (next.min - lvl.min)) * 100));
-                },
-                get streak() {
-                    const dates = [...new Set(this.sessions.filter(s => s.type === 'grind').map(s => s.date))].sort();
-                    if(dates.length === 0) return 0;
-                    let streak = 0, check = new Date();
-                    const hasToday = dates.includes(check.toISOString().split('T')[0]);
-                    if(!hasToday) check.setDate(check.getDate() - 1);
-                    while(true) {
-                        const dateStr = check.toISOString().split('T')[0];
-                        if(dates.includes(dateStr)) { streak++; check.setDate(check.getDate()-1); } else break;
-                    }
-                    return streak;
-                },
-
-                addSession() {
-                    const f = this.form;
-                    const mult = this.inputCurrency === 'BRL' ? (1/this.currencyRate) : 1;
-                    let session = {
-                        id: Date.now(),
-                        date: f.date, type: f.type,
-                        location: f.type === 'grind' ? (f.location || 'Online') : (f.type === 'deposit' ? 'Depósito' : 'Saque')
-                    };
-                    if(f.type === 'grind') {
-                        session.volume = f.volume || 0;
-                        session.invested = (f.invested || 0) * mult;
-                        session.return = (f.return || 0) * mult;
-                        session.profit = session.return - session.invested;
-                        session.context = f.context;
-                        if(session.profit < 0 && (this.todaysLoss + Math.abs(session.profit)) >= this.settings.dailyStopLoss) this.showStopLoss = true;
-                        if(session.location && !this.settings.locations.includes(session.location)) this.settings.locations.push(session.location);
-                    } else {
-                        const val = (f.amount || 0) * mult;
-                        session.profit = f.type === 'deposit' ? val : -val;
-                        session.invested = 0; session.return = 0;
-                    }
-                    this.sessions.push(session); this.saveLocal();
-                    this.form.invested = ''; this.form.return = ''; this.form.amount = '';
-                },
-                deleteSession(id) { if(confirm('Apagar registro?')) { this.sessions = this.sessions.filter(s => s.id !== id); this.saveLocal(); } },
-                saveLocal(sync = true) {
-                    localStorage.setItem('poker_pro_v7_pko', JSON.stringify({ sessions: this.sessions, settings: this.settings }));
-                    if(sync && this.pushToCloud) this.pushToCloud();
-                },
-                formatMoney(val) { return '$' + (val || 0).toFixed(2); },
-                formatBRL(val) { return 'R$ ' + ((val || 0) * this.currencyRate).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
-                formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}`; },
-                isCurrentLevel(l) { return this.currentLevelObj.id === l.id; },
-                isLocked(l) { return this.bankroll < l.min; },
-                exportData() {
-                    const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({sessions: this.sessions, settings: this.settings}));
-                    const node = document.createElement('a'); node.setAttribute("href", str); node.setAttribute("download", "bankroll_backup.json");
-                    document.body.appendChild(node); node.click(); node.remove();
-                },
-                importData(e) {
-                    const reader = new FileReader();
-                    reader.onload = (evt) => {
-                        try {
-                            const d = JSON.parse(evt.target.result);
-                            this.sessions = d.sessions || [];
-                            if(d.settings) this.settings = d.settings;
-                            this.saveLocal(); location.reload();
-                        } catch(err) { alert('Arquivo inválido'); }
-                    };
-                    reader.readAsText(e.target.files[0]);
-                },
-                resetAll() { if(confirm("Tem certeza absoluta?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
-                
-                // --- CHARTING FIXES ---
-                destroyCharts(keys) {
-                    keys.forEach(k => {
-                        if (this.charts[k]) {
-                            this.charts[k].destroy();
-                            this.charts[k] = null;
-                        }
-                    });
-                },
-
-                renderMiniChart() {
-                    this.$nextTick(() => {
+                    renderMiniChart() {
                         const el = document.getElementById('miniChartEl');
                         if(!el || el.offsetParent === null) return;
                         
                         const ctx = el.getContext('2d');
-                        if(this.charts.mini) this.charts.mini.destroy();
+                        if(_chartInstances.mini) _chartInstances.mini.destroy();
+
+                        // Gradiente Seguro
+                        let gradient = null;
+                        try {
+                            gradient = ctx.createLinearGradient(0, 0, 0, el.clientHeight || 100);
+                            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                        } catch(e) { gradient = 'rgba(59, 130, 246, 0.1)'; }
+
                         const data = this.buildChartData();
-                        this.charts.mini = new Chart(ctx, {
+                        
+                        _chartInstances.mini = new Chart(ctx, {
                             type: 'line',
                             data: {
                                 labels: data.labels,
                                 datasets: [{
                                     data: data.values,
                                     borderColor: '#3b82f6', 
-                                    backgroundColor: (context) => {
-                                        const ctx = context.chart.ctx;
-                                        // FIX: Safety Check for Context
-                                        if (!ctx) return 'rgba(59, 130, 246, 0.1)';
-                                        const gradient = ctx.createLinearGradient(0, 0, 0, 100);
-                                        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                                        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                                        return gradient;
-                                    },
+                                    backgroundColor: gradient,
                                     borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
-                                }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display:false}, y: {display:false} } }
-                        });
-                    });
-                },
-                renderCharts() {
-                    this.$nextTick(() => {
-                        const elMain = document.getElementById('mainChartEl');
-                        if (!elMain || elMain.offsetParent === null) return;
-
-                        const data = this.buildChartData();
-                        
-                        // Main Chart
-                        const ctxMain = elMain.getContext('2d');
-                        if(this.charts.main) this.charts.main.destroy();
-                        this.charts.main = new Chart(ctxMain, {
-                            type: 'line',
-                            data: {
-                                labels: data.labels,
-                                datasets: [{
-                                    label: 'Bankroll ($)', data: data.values,
-                                    borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                    borderWidth: 2, fill: true, tension: 0.3,
-                                    pointRadius: 3, pointHoverRadius: 6
                                 }]
                             },
                             options: { 
                                 responsive: true, 
                                 maintainAspectRatio: false, 
-                                scales: { 
-                                    y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
-                                    x: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
-                                },
-                                plugins: { legend: {labels: {color: '#e2e8f0'}} }
+                                plugins: { legend: {display: false} }, 
+                                scales: { x: {display:false}, y: {display:false} } 
                             }
                         });
+                    },
+                    renderCharts() {
+                        const elMain = document.getElementById('mainChartEl');
+                        if (elMain && elMain.offsetParent !== null) {
+                            const data = this.buildChartData();
+                            const ctxMain = elMain.getContext('2d');
+                            if(_chartInstances.main) _chartInstances.main.destroy();
+                            
+                            _chartInstances.main = new Chart(ctxMain, {
+                                type: 'line',
+                                data: {
+                                    labels: data.labels,
+                                    datasets: [{
+                                        label: 'Bankroll ($)', data: data.values,
+                                        borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        borderWidth: 2, fill: true, tension: 0.3,
+                                        pointRadius: 3, pointHoverRadius: 6
+                                    }]
+                                },
+                                options: { 
+                                    responsive: true, maintainAspectRatio: false, 
+                                    scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
+                                    plugins: { legend: {labels: {color: '#e2e8f0'}} }
+                                }
+                            });
+                        }
 
-                        // Volume Chart
+                        // Volume
                         const elVol = document.getElementById('volumeChartEl');
-                        if (elVol) {
+                        if (elVol && elVol.offsetParent !== null) {
                             const ctxVol = elVol.getContext('2d');
                             const volData = this.buildVolumeData();
-                            if(this.charts.volume) this.charts.volume.destroy();
-                            this.charts.volume = new Chart(ctxVol, {
+                            if(_chartInstances.volume) _chartInstances.volume.destroy();
+                            _chartInstances.volume = new Chart(ctxVol, {
                                 type: 'bar',
                                 data: {
                                     labels: volData.labels,
                                     datasets: [{
-                                        label: 'Torneios',
-                                        data: volData.values,
-                                        backgroundColor: '#3b82f6',
-                                        borderRadius: 4
+                                        label: 'Torneios', data: volData.values,
+                                        backgroundColor: '#3b82f6', borderRadius: 4
                                     }]
                                 },
                                 options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    scales: { 
-                                        y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
-                                        x: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
-                                    },
+                                    responsive: true, maintainAspectRatio: false,
+                                    scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
                                     plugins: { legend: {display: false} }
                                 }
                             });
                         }
 
-                        // Location Chart
+                        // Location
                         const elLoc = document.getElementById('locationChartEl');
-                        if (elLoc) {
+                        if (elLoc && elLoc.offsetParent !== null) {
                             const ctxLoc = elLoc.getContext('2d');
                             const locData = this.buildLocationData();
-                            if(this.charts.location) this.charts.location.destroy();
-                            this.charts.location = new Chart(ctxLoc, {
+                            if(_chartInstances.location) _chartInstances.location.destroy();
+                            _chartInstances.location = new Chart(ctxLoc, {
                                 type: 'bar',
                                 indexAxis: 'y',
                                 data: {
                                     labels: locData.labels,
                                     datasets: [{
-                                        label: 'Profit ($)',
-                                        data: locData.values,
+                                        label: 'Profit ($)', data: locData.values,
                                         backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'),
                                         borderRadius: 4
                                     }]
                                 },
                                 options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    scales: { 
-                                        x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
-                                        y: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
-                                    },
+                                    responsive: true, maintainAspectRatio: false,
+                                    scales: { x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, y: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
                                     plugins: { legend: {display: false} }
                                 }
                             });
                         }
-                    });
-                },
-                updateCharts() { 
-                    if(this.activeTab === 'charts') this.renderCharts();
-                    else if(this.activeTab === 'dashboard') this.renderMiniChart();
-                },
-                buildChartData() {
-                    let b = this.settings.initialBankroll;
-                    let values = [b], labels = ['Start'];
-                    [...this.sessions].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(s => {
-                        b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date));
-                    });
-                    return { values, labels };
-                },
-                buildVolumeData() {
-                    const counts = {};
-                    this.sessions.filter(s => s.type === 'grind').forEach(s => {
-                        const d = new Date(s.date);
-                        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-                        counts[key] = (counts[key] || 0) + (s.volume || 0);
-                    });
-                    return { labels: Object.keys(counts), values: Object.values(counts) };
-                },
-                buildLocationData() {
-                    const profits = {};
-                    this.sessions.filter(s => s.type === 'grind').forEach(s => {
-                        const loc = s.location || 'Outros';
-                        profits[loc] = (profits[loc] || 0) + (s.profit || 0);
-                    });
-                    return { labels: Object.keys(profits), values: Object.values(profits) };
+                    },
+                    buildChartData() {
+                        let b = this.settings.initialBankroll;
+                        let values = [b], labels = ['Start'];
+                        [...this.sessions].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(s => {
+                            b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date));
+                        });
+                        return { values, labels };
+                    },
+                    buildVolumeData() {
+                        const counts = {};
+                        this.sessions.filter(s => s.type === 'grind').forEach(s => {
+                            const d = new Date(s.date);
+                            const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                            counts[key] = (counts[key] || 0) + (s.volume || 0);
+                        });
+                        return { labels: Object.keys(counts), values: Object.values(counts) };
+                    },
+                    buildLocationData() {
+                        const profits = {};
+                        this.sessions.filter(s => s.type === 'grind').forEach(s => {
+                            const loc = s.location || 'Outros';
+                            profits[loc] = (profits[loc] || 0) + (s.profit || 0);
+                        });
+                        return { labels: Object.keys(profits), values: Object.values(profits) };
+                    }
                 }
-            }));
+            });
         });
     </script>
 </head>
