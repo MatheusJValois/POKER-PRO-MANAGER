@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Bankroll Poker PRO</title>
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                        poker: { green: '#10b981', red: '#ef4444', blue: '#3b82f6', gold: '#f59e0b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .input-dark { background-color: #0f172a; border: 1px solid #334155; color: white; transition: all 0.2s; }
+        .input-dark:focus { outline: none; border-color: #3b82f6; ring: 1px solid #3b82f6; }
+        
+        /* Animações */
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .animate-slide { animation: slideIn 0.4s ease-out; }
+        .stop-loss-alert { animation: pulse-red 2s infinite; border: 2px solid #ef4444; }
+        
+        /* Modal Transitions */
+        .modal { transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; opacity: 0; visibility: hidden; }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content { transform: scale(0.95); transition: transform 0.3s ease-in-out; }
+        .modal.active .modal-content { transform: scale(1); }
+
+        /* Level Cards */
+        .level-card { transition: all 0.3s; border: 1px solid #334155; }
+        .level-card.locked { opacity: 0.5; filter: grayscale(0.8); }
+        .level-card.current { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); transform: scale(1.02); }
+        
+        /* Tabs */
+        .tab-btn.active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+        .tab-btn { color: #94a3b8; transition: all 0.2s; }
+        .tab-btn:hover { color: #e2e8f0; }
+        
+        /* Currency Toggle */
+        .currency-toggle input:checked + div { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans text-sm md:text-base relative">
+
+    <!-- OVERLAY DE STOP LOSS -->
+    <div id="stopLossOverlay" class="hidden fixed inset-0 z-50 bg-red-900/90 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-slate-900 p-8 rounded-2xl border-2 border-red-500 shadow-2xl text-center max-w-md animate-slide stop-loss-alert">
+            <i class="fa-solid fa-hand-paper text-6xl text-red-500 mb-4"></i>
+            <h2 class="text-3xl font-bold text-white mb-2">PARE AGORA!</h2>
+            <p class="text-xl text-red-200 mb-6">Você atingiu seu limite de perda diária (<span id="stopLossValueDisplay"></span>).</p>
+            <p class="text-slate-400 text-sm mb-6">Preserve seu mental e seu bankroll. Vá descansar e volte amanhã mais forte.</p>
+            <button onclick="closeStopLoss()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-lg transition-colors">
+                Entendido, vou fechar as telas
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE NÍVEIS (CARREIRA) -->
+    <div id="levelsModal" class="modal fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="modal-content bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-850">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-blue-500"></i> Plano de Carreira
+                    </h2>
+                    <p class="text-slate-400 text-sm">Seu mapa para o High Stakes</p>
+                </div>
+                <button onclick="toggleLevelsModal()" class="text-slate-400 hover:text-white transition-colors text-2xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6" id="levelsContainer">
+                <!-- Levels will be injected here via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="bg-slate-850 border-b border-slate-700 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                
+                <!-- Logo & Nome -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg">
+                        <i class="fa-solid fa-layer-group text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">POKER PRO <span class="text-blue-500">MANAGER</span></h1>
+                        <p class="text-xs text-slate-400 font-mono tracking-widest">GESTOR DE BANKROLL v4.2</p>
+                    </div>
+                </div>
+
+                <!-- Visor de Bankroll -->
+                <div class="flex flex-col items-end">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-sm text-slate-400" id="playerNameDisplay">Jogador:</span>
+                        <span id="headerBankrollUSD" class="text-2xl md:text-3xl font-mono font-bold text-emerald-400">$0.00</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span id="headerBankrollBRL" class="text-slate-300 font-mono">R$ 0,00</span>
+                        <span class="text-slate-600">|</span>
+                        <span id="usdRate" class="text-slate-500">USD: R$ ...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegação (Tabs) -->
+            <nav class="flex gap-4 md:gap-6 border-b md:border-b-0 border-slate-700 overflow-x-auto w-full md:w-auto">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </button>
+                <button onclick="switchTab('charts')" id="tab-charts" class="tab-btn pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line"></i> Gráficos
+                </button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
+                    <i class="fa-solid fa-gear"></i> Config
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-grow bg-slate-900 p-4 md:p-6">
+        <div class="max-w-7xl mx-auto">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="space-y-6 animate-slide">
+                
+                <!-- PANORAMA DO BANKROLL -->
+                <div id="panoramaCard" class="card p-6 md:p-8 relative overflow-hidden transition-colors duration-500 border-l-4">
+                    <!-- Fundo Decorativo -->
+                    <div class="absolute top-0 right-0 p-8 opacity-5">
+                        <i class="fa-solid fa-coins text-9xl"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                        <!-- Lado Esquerdo: Valor e Status -->
+                        <div>
+                            <p class="text-slate-400 text-sm font-bold uppercase tracking-widest mb-1">Bankroll Atual</p>
+                            <div class="flex items-baseline gap-2">
+                                <h2 id="panoramaBankroll" class="text-5xl md:text-6xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">$0.00</h2>
+                                <span id="panoramaCurrency" class="text-xl text-slate-500 font-bold">USD</span>
+                            </div>
+                            <p id="panoramaBRL" class="text-slate-400 font-mono mt-1 opacity-70">≈ R$ 0,00</p>
+                            
+                            <div class="mt-6 flex items-center gap-3">
+                                <span id="zoneBadge" class="px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-white border border-slate-600">
+                                    Calculando...
+                                </span>
+                                <div class="h-2 w-32 bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="zoneProgressBar" class="h-full bg-white w-0 transition-all duration-1000"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lado Direito: Sugestão e Coach -->
+                        <div class="flex flex-col justify-center border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
+                            <div class="mb-4">
+                                <p class="text-xs text-slate-400 uppercase font-bold mb-1">ABI Sugerido (Buy-in Médio)</p>
+                                <p id="panoramaABI" class="text-2xl font-bold text-white">$0.00 - $0.00</p>
+                            </div>
+                            
+                            <div class="bg-black/20 p-4 rounded-lg border border-white/5 backdrop-blur-sm">
+                                <p class="text-xs text-slate-400 uppercase font-bold mb-2 flex items-center gap-2">
+                                    <i class="fa-solid fa-comment-dots"></i> Coach Diz:
+                                </p>
+                                <p id="panoramaQuote" class="text-sm italic text-slate-200 leading-relaxed">
+                                    "Carregando sabedoria..."
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gamification Bar (INTERATIVA) -->
+                <div class="card px-6 py-4 bg-slate-850 flex flex-col md:flex-row justify-between items-center gap-4 cursor-pointer hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-600 group" onclick="toggleLevelsModal()">
+                    <div class="flex items-center gap-4 w-full md:w-auto">
+                        <div class="bg-blue-900/50 p-3 rounded-full text-blue-400 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-medal text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="text-xs text-slate-400 font-bold uppercase">Nível Atual</p>
+                                <span class="bg-slate-700 text-xs px-2 rounded text-slate-300">Clique para ver detalhes</span>
+                            </div>
+                            <p id="currentLevelName" class="text-lg font-bold text-white leading-none">Iniciante</p>
+                            <div class="w-full bg-slate-700 h-1.5 rounded-full mt-2 md:w-64">
+                                <div id="miniXpBar" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-6 w-full md:w-auto justify-end border-t md:border-t-0 md:border-l border-slate-700 pt-4 md:pt-0 md:pl-6">
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Próximo Marco</p>
+                            <p id="nextLevelTarget" class="text-emerald-400 font-mono font-bold">$...</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400 font-bold uppercase">Streak</p>
+                            <div class="flex items-center gap-2 justify-end">
+                                <span id="streakCount" class="text-orange-500 text-lg font-bold">0</span>
+                                <i class="fa-solid fa-fire text-orange-500 animate-pulse"></i>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-white transition-colors"></i>
+                    </div>
+                </div>
+
+                <!-- Cards de Métricas e Registro -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Coluna Esquerda: Métricas Rápidas -->
+                    <div class="space-y-6">
+                        <div class="card p-5 grid grid-cols-2 gap-4">
+                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Lucro Total</p>
+                                <p id="dashProfit" class="text-lg font-mono font-bold text-white">...</p>
+                            </div>
+                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">ROI Total</p>
+                                <p id="dashROI" class="text-lg font-mono font-bold text-white">...</p>
+                            </div>
+                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">ABI Real</p>
+                                <p id="dashABI" class="text-lg font-mono font-bold text-white">...</p>
+                            </div>
+                            <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Volume</p>
+                                <p id="dashVolume" class="text-lg font-mono font-bold text-white">...</p>
+                            </div>
+                        </div>
+
+                        <!-- Mini Gráfico de Bankroll -->
+                        <div class="card p-4 h-48 relative cursor-pointer hover:border-blue-500 transition-colors group" onclick="switchTab('charts')">
+                            <div class="absolute top-4 left-4 z-10">
+                                <h3 class="text-xs font-bold text-slate-400 group-hover:text-blue-400 transition-colors">EVOLUÇÃO</h3>
+                            </div>
+                            <canvas id="miniChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Coluna Direita (2/3): Formulário de Registro -->
+                    <div class="lg:col-span-2 card p-6 border-t-4 border-t-blue-500">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-pen-to-square"></i> Registrar Atividade
+                            </h2>
+                            <!-- Currency Toggle -->
+                            <div class="flex bg-slate-800 rounded p-1 border border-slate-700">
+                                <label class="currency-toggle cursor-pointer">
+                                    <input type="radio" name="inputCurrency" value="USD" checked class="hidden" onchange="updateInputLabels()">
+                                    <div class="px-3 py-1 rounded text-xs font-bold text-slate-400 border border-transparent transition-all">USD ($)</div>
+                                </label>
+                                <label class="currency-toggle cursor-pointer">
+                                    <input type="radio" name="inputCurrency" value="BRL" class="hidden" onchange="updateInputLabels()">
+                                    <div class="px-3 py-1 rounded text-xs font-bold text-slate-400 border border-transparent transition-all">BRL (R$)</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <form id="sessionForm" onsubmit="handleSessionSubmit(event)" class="space-y-5">
+                            <!-- Tipo de Registro -->
+                            <div class="flex gap-6 mb-2 border-b border-slate-700 pb-4">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <div class="relative flex items-center">
+                                        <input type="radio" name="recordType" value="grind" checked onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-blue-500 transition-all">
+                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                    </div>
+                                    <span class="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">Grind (Sessão)</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <div class="relative flex items-center">
+                                        <input type="radio" name="recordType" value="deposit" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-emerald-500 transition-all">
+                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                    </div>
+                                    <span class="text-slate-300 text-sm font-medium group-hover:text-emerald-400 transition-colors">Depósito</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <div class="relative flex items-center">
+                                        <input type="radio" name="recordType" value="withdraw" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-red-500 transition-all">
+                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
+                                    </div>
+                                    <span class="text-slate-300 text-sm font-medium group-hover:text-red-400 transition-colors">Saque</span>
+                                </label>
+                            </div>
+
+                            <div id="grindFields" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Data</label>
+                                    <input type="date" id="sDate" required class="w-full p-2.5 rounded input-dark">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Local / Site</label>
+                                    <input type="text" id="sLocation" list="locationsList" placeholder="Ex: GGPoker" class="w-full p-2.5 rounded input-dark">
+                                    <datalist id="locationsList"></datalist>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Tipo de Jogo</label>
+                                    <select id="sContext" class="w-full p-2.5 rounded input-dark">
+                                        <option value="Online">Online MTT</option>
+                                        <option value="Live">Live MTT</option>
+                                        <option value="Cash">Cash Game</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1 font-semibold">Volume (Qtd Torneios)</label>
+                                    <input type="number" id="sVolume" placeholder="15" class="w-full p-2.5 rounded input-dark">
+                                </div>
+
+                                <div class="md:col-span-2 grid grid-cols-2 gap-5 p-5 bg-slate-800/30 rounded-lg border border-slate-700/50">
+                                    <div>
+                                        <label class="block text-xs text-red-400 mb-1 font-bold label-invested">Total Investido ($)</label>
+                                        <input type="number" step="0.01" id="sInvested" placeholder="0.00" class="w-full p-2.5 rounded bg-slate-900 border border-red-900/30 text-white focus:border-red-500 outline-none transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-emerald-400 mb-1 font-bold label-return">Retorno Total ($)</label>
+                                        <input type="number" step="0.01" id="sReturn" placeholder="0.00" class="w-full p-2.5 rounded bg-slate-900 border border-emerald-900/30 text-white focus:border-emerald-500 outline-none transition-colors">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Campos para Depósito/Saque (Escondidos inicialmente) -->
+                            <div id="transactionFields" class="hidden py-4">
+                                <label class="block text-xs text-slate-400 mb-2 font-bold label-amount">Valor da Transação ($)</label>
+                                <input type="number" step="0.01" id="sAmount" placeholder="0.00" class="w-full p-4 rounded input-dark text-xl font-bold font-mono">
+                            </div>
+
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-lg transition-all transform active:scale-[0.98] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-check"></i> Registrar Sessão
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tabela de Histórico -->
+                <div class="card overflow-hidden">
+                    <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-300 text-sm uppercase tracking-wider">Histórico Recente</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-900/50 text-xs uppercase text-slate-500 font-semibold">
+                                <tr>
+                                    <th class="p-4">Data</th>
+                                    <th class="p-4">Tipo</th>
+                                    <th class="p-4">Local</th>
+                                    <th class="p-4 text-right">Investido</th>
+                                    <th class="p-4 text-right">Retorno</th>
+                                    <th class="p-4 text-right">Lucro/Valor</th>
+                                    <th class="p-4 text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody" class="divide-y divide-slate-700 text-sm font-medium">
+                                <!-- JS Populates -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div> <!-- Fim View Dashboard -->
+
+            <!-- VIEW: GRÁFICOS (Charts) -->
+            <div id="view-charts" class="hidden space-y-6 animate-slide">
+                <h2 class="text-2xl font-bold text-white mb-4">Análise de Performance</h2>
+                
+                <!-- Gráfico Principal Grande -->
+                <div class="card p-4 h-96 relative">
+                    <h3 class="text-sm font-bold text-slate-400 absolute top-4 left-4">BANKROLL TOTAL</h3>
+                    <canvas id="mainChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Gráfico Volume vs Dias -->
+                    <div class="card p-4 h-64">
+                        <h3 class="text-sm font-bold text-slate-400 mb-2">Volume Diário</h3>
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                    <!-- Gráfico Online vs Live -->
+                    <div class="card p-4 h-64">
+                        <h3 class="text-sm font-bold text-slate-400 mb-2">Distribuição de Lucro (Local)</h3>
+                        <canvas id="locationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CONFIGURAÇÕES (Settings) -->
+            <div id="view-settings" class="hidden space-y-6 animate-slide">
+                <h2 class="text-2xl font-bold text-white mb-4">Painel de Controle</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Configurações Gerais -->
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">
+                            <i class="fa-solid fa-sliders"></i> Preferências
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">Nome do Jogador</label>
+                                <input type="text" id="cfgPlayerName" class="w-full p-2 rounded input-dark" onchange="saveSettings()" placeholder="Seu nome">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">Banca Inicial ($)</label>
+                                <input type="number" step="0.01" id="cfgInitialBankroll" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
+                                <p class="text-xs text-slate-600 mt-1">Altere apenas se necessário. O padrão é $1010.32</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-red-400 mb-1 font-bold">Stop Loss Diário ($)</label>
+                                <input type="number" step="1" id="cfgStopLoss" class="w-full p-2 rounded bg-slate-900 border border-red-900/50 text-white" onchange="saveSettings()">
+                                <p class="text-xs text-slate-600 mt-1">Alerta se a perda diária exceder este valor.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configurações de Moeda e Zonas -->
+                    <div class="card p-6">
+                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">
+                            <i class="fa-solid fa-coins"></i> Economia & Metas
+                        </h3>
+
+                        <div class="space-y-4">
+                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
+                                <label class="flex items-center gap-2 mb-2 cursor-pointer">
+                                    <input type="checkbox" id="cfgManualRate" class="accent-blue-500" onchange="toggleManualRate()">
+                                    <span class="text-sm font-bold text-slate-300">Usar Câmbio Manual</span>
+                                </label>
+                                <div id="manualRateContainer" class="hidden">
+                                    <label class="block text-xs text-slate-500 mb-1">Taxa USD para BRL (R$)</label>
+                                    <input type="number" step="0.01" id="cfgExchangeRate" class="w-full p-2 rounded input-dark" onchange="saveSettings()" placeholder="5.00">
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2" id="currentRateDisplay">Taxa atual: ...</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-emerald-400 mb-1">Meta: Conforto ($)</label>
+                                    <input type="number" id="cfgZoneComfort" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-blue-400 mb-1">Meta: Ataque ($)</label>
+                                    <input type="number" id="cfgZoneAttack" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dados e Segurança -->
+                    <div class="card p-6 md:col-span-2">
+                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">
+                            <i class="fa-solid fa-database"></i> Dados & Segurança
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
+                                <h4 class="font-bold text-slate-300 mb-2">Backup</h4>
+                                <button onclick="exportData()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download"></i> Baixar .JSON
+                                </button>
+                            </div>
+
+                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
+                                <h4 class="font-bold text-slate-300 mb-2">Restaurar</h4>
+                                <label class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-upload"></i> Selecionar Arquivo
+                                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)">
+                                </label>
+                            </div>
+
+                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
+                                <h4 class="font-bold text-slate-300 mb-2">Memória</h4>
+                                <button onclick="clearLocations()" class="bg-slate-700 hover:bg-slate-600 text-yellow-500 text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-eraser"></i> Limpar Locais Salvos
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button onclick="clearAllData()" class="text-xs text-red-500 hover:text-red-400 underline w-full text-center mt-6">
+                            Apagar todos os dados (Reset de Fábrica)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 py-4 text-center text-xs text-slate-600 border-t border-slate-800">
+        Gestor de Bankroll Poker PRO v4.2 | Grind Seguro
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONFIGURAÇÃO DE NÍVEIS (RPG SYSTEM) ---
+        const LEVELS = [
+            { id: 1, name: "Sobrevivente", min: 0, max: 600, color: "text-red-500", bg: "bg-red-500", border: "border-red-500", icon: "fa-skull", strategy: "Stop Loss rígido. Jogue torneios de até $2.00. Foco total em recuperar a base." },
+            { id: 2, name: "Aprendiz", min: 600, max: 900, color: "text-yellow-500", bg: "bg-yellow-500", border: "border-yellow-500", icon: "fa-graduation-cap", strategy: "Cautela. Max buy-in $5.00. Evite tiros e variantes exóticas." },
+            { id: 3, name: "Grinder", min: 900, max: 1400, color: "text-emerald-500", bg: "bg-emerald-500", border: "border-emerald-500", icon: "fa-seedling", strategy: "Zona de Conforto. ABI $4.50. Foco em volume e consistência." },
+            { id: 4, name: "Caçador", min: 1400, max: 2500, color: "text-blue-500", bg: "bg-blue-500", border: "border-blue-500", icon: "fa-crosshairs", strategy: "Ataque. Tiros controlados até $10.50. Comece a buscar a forra grande." },
+            { id: 5, name: "Profissional", min: 2500, max: 5000, color: "text-purple-500", bg: "bg-purple-500", border: "border-purple-500", icon: "fa-chess-king", strategy: "High Stakes. ABI $15+. Gestão profissional e estudo avançado." },
+            { id: 6, name: "Elite", min: 5000, max: 999999, color: "text-amber-400", bg: "bg-amber-400", border: "border-amber-400", icon: "fa-crown", strategy: "O topo da cadeia alimentar. Domine o field." }
+        ];
+
+        // --- ESTADO GLOBAL ---
+        let appData = {
+            sessions: [],
+            settings: {
+                playerName: 'Jogador',
+                initialBankroll: 1010.32,
+                dailyStopLoss: 50,
+                manualRateEnabled: false,
+                manualRateValue: 5.00,
+                zoneComfort: 900,
+                zoneAttack: 1400,
+                locations: ['GGPoker', 'PokerStars', '888Poker', 'Live Home Game']
+            }
+        };
+
+        let liveCurrencyRate = 5.00; 
+        let activeRate = 5.00; 
+        let charts = {}; 
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadData();
+            await fetchCurrency(); 
+            
+            document.getElementById('sDate').valueAsDate = new Date();
+            
+            // Populate Config
+            document.getElementById('cfgInitialBankroll').value = appData.settings.initialBankroll;
+            document.getElementById('cfgStopLoss').value = appData.settings.dailyStopLoss;
+            document.getElementById('cfgPlayerName').value = appData.settings.playerName || '';
+            document.getElementById('cfgZoneComfort').value = appData.settings.zoneComfort || 900;
+            document.getElementById('cfgZoneAttack').value = appData.settings.zoneAttack || 1400;
+            
+            document.getElementById('cfgManualRate').checked = appData.settings.manualRateEnabled || false;
+            document.getElementById('cfgExchangeRate').value = appData.settings.manualRateValue || 5.00;
+            toggleManualRate(false); 
+            
+            updateUI();
+            updateLocationDatalist();
+        });
+
+        // --- CORE FUNCTIONS ---
+
+        function loadData() {
+            try {
+                const saved = localStorage.getItem('poker_pro_data');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    appData = { ...appData, ...parsed, settings: { ...appData.settings, ...parsed.settings } };
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados:", e);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('poker_pro_data', JSON.stringify(appData));
+            updateUI();
+        }
+
+        async function fetchCurrency() {
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await res.json();
+                liveCurrencyRate = data.rates.BRL;
+            } catch (e) { console.log("Erro ao buscar moeda."); }
+            updateRateDisplay();
+        }
+
+        function updateRateDisplay() {
+            if (appData.settings.manualRateEnabled) {
+                activeRate = parseFloat(appData.settings.manualRateValue) || liveCurrencyRate;
+                document.getElementById('currentRateDisplay').innerText = `Taxa ativa: R$ ${activeRate.toFixed(2)} (Manual)`;
+            } else {
+                activeRate = liveCurrencyRate;
+                document.getElementById('currentRateDisplay').innerText = `Taxa ativa: R$ ${activeRate.toFixed(2)} (Automática)`;
+            }
+            document.getElementById('usdRate').innerText = `USD: R$ ${activeRate.toFixed(2)}`;
+            
+            const currentBankrollUSD = calculateCurrentBankroll();
+            document.getElementById('headerBankrollBRL').innerText = formatCurrencyBRL(currentBankrollUSD * activeRate);
+            document.getElementById('panoramaBRL').innerText = `≈ ${formatCurrencyBRL(currentBankrollUSD * activeRate)}`;
+        }
+        
+        function calculateCurrentBankroll() {
+            let bal = appData.settings.initialBankroll;
+            if (appData.sessions && Array.isArray(appData.sessions)) {
+                appData.sessions.forEach(s => bal += s.profit);
+            }
+            return bal;
+        }
+
+        function switchTab(tabName) {
+            ['dashboard', 'charts', 'settings'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`tab-${v}`).classList.remove('active');
+            });
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            if (tabName === 'charts') renderFullCharts();
+        }
+
+        function toggleFormMode() {
+            const type = document.querySelector('input[name="recordType"]:checked').value;
+            const grindFields = document.getElementById('grindFields');
+            const transactionFields = document.getElementById('transactionFields');
+            if (type === 'grind') {
+                grindFields.classList.remove('hidden');
+                transactionFields.classList.add('hidden');
+            } else {
+                grindFields.classList.add('hidden');
+                transactionFields.classList.remove('hidden');
+            }
+        }
+        
+        function updateInputLabels() {
+            const currency = document.querySelector('input[name="inputCurrency"]:checked').value;
+            const symbol = currency === 'USD' ? '$' : 'R$';
+            document.querySelector('.label-invested').innerText = `Total Investido (${symbol})`;
+            document.querySelector('.label-return').innerText = `Retorno Total (${symbol})`;
+            document.querySelector('.label-amount').innerText = `Valor da Transação (${symbol})`;
+        }
+
+        // --- LÓGICA DE NEGÓCIO ---
+
+        function handleSessionSubmit(e) {
+            e.preventDefault();
+            const type = document.querySelector('input[name="recordType"]:checked').value;
+            const currency = document.querySelector('input[name="inputCurrency"]:checked').value;
+            const date = document.getElementById('sDate').value;
+            
+            const convert = (val) => (currency === 'BRL') ? val / activeRate : val;
+            
+            let newEntry = {
+                id: Date.now(),
+                date: date,
+                type: type,
+                originalCurrency: currency 
+            };
+
+            if (type === 'grind') {
+                newEntry.location = document.getElementById('sLocation').value || 'Online';
+                newEntry.context = document.getElementById('sContext').value;
+                newEntry.volume = parseInt(document.getElementById('sVolume').value) || 0;
+                const investedInput = parseFloat(document.getElementById('sInvested').value) || 0;
+                const returnInput = parseFloat(document.getElementById('sReturn').value) || 0;
+                newEntry.invested = convert(investedInput);
+                newEntry.return = convert(returnInput);
+                newEntry.profit = newEntry.return - newEntry.invested;
+                if (!appData.settings.locations.includes(newEntry.location)) {
+                    appData.settings.locations.push(newEntry.location);
+                    updateLocationDatalist();
+                }
+                checkStopLoss(newEntry.profit, date);
+            } else {
+                const amountInput = parseFloat(document.getElementById('sAmount').value) || 0;
+                const amountUSD = convert(amountInput);
+                newEntry.location = type === 'deposit' ? 'Depósito' : 'Saque';
+                newEntry.profit = type === 'deposit' ? amountUSD : -amountUSD;
+                newEntry.invested = 0;
+                newEntry.return = 0;
+            }
+
+            appData.sessions.push(newEntry);
+            saveData();
+            e.target.reset();
+            document.getElementById('sDate').valueAsDate = new Date();
+            document.querySelector('input[value="grind"]').checked = true;
+            toggleFormMode();
+        }
+
+        function checkStopLoss(profit, date) {
+            if (profit >= 0) return;
+            const todaysLoss = appData.sessions
+                .filter(s => s.date === date && s.type === 'grind')
+                .reduce((acc, curr) => acc + curr.profit, 0) + profit; 
+            const limit = -Math.abs(appData.settings.dailyStopLoss);
+            if (todaysLoss <= limit) {
+                document.getElementById('stopLossValueDisplay').innerText = formatCurrency(Math.abs(todaysLoss));
+                document.getElementById('stopLossOverlay').classList.remove('hidden');
+            }
+        }
+
+        function closeStopLoss() { document.getElementById('stopLossOverlay').classList.add('hidden'); }
+
+        function deleteSession(id) {
+            if (confirm("Apagar este registro?")) {
+                appData.sessions = appData.sessions.filter(s => s.id !== id);
+                saveData();
+            }
+        }
+
+        // --- SETTINGS LOGIC ---
+
+        function toggleManualRate(save = true) {
+            const enabled = document.getElementById('cfgManualRate').checked;
+            const container = document.getElementById('manualRateContainer');
+            if (enabled) container.classList.remove('hidden');
+            else container.classList.add('hidden');
+            if (save) saveSettings();
+            else updateRateDisplay();
+        }
+
+        function saveSettings() {
+            appData.settings.initialBankroll = parseFloat(document.getElementById('cfgInitialBankroll').value);
+            appData.settings.dailyStopLoss = parseFloat(document.getElementById('cfgStopLoss').value);
+            appData.settings.playerName = document.getElementById('cfgPlayerName').value;
+            appData.settings.zoneComfort = parseFloat(document.getElementById('cfgZoneComfort').value);
+            appData.settings.zoneAttack = parseFloat(document.getElementById('cfgZoneAttack').value);
+            appData.settings.manualRateEnabled = document.getElementById('cfgManualRate').checked;
+            appData.settings.manualRateValue = parseFloat(document.getElementById('cfgExchangeRate').value);
+            
+            // Atualizar niveis baseados nas configs
+            LEVELS[1].max = appData.settings.zoneComfort;
+            LEVELS[2].min = appData.settings.zoneComfort;
+            LEVELS[2].max = appData.settings.zoneAttack;
+            LEVELS[3].min = appData.settings.zoneAttack;
+
+            saveData();
+            updateRateDisplay();
+        }
+
+        function clearLocations() {
+            if (confirm("Limpar lista de locais salvos?")) {
+                appData.settings.locations = ['GGPoker'];
+                saveData();
+                updateLocationDatalist();
+            }
+        }
+
+        // --- RPG SYSTEM & MODAL LOGIC ---
+
+        function toggleLevelsModal() {
+            const modal = document.getElementById('levelsModal');
+            const container = document.getElementById('levelsContainer');
+            
+            if (modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            } else {
+                renderLevelsModal(calculateCurrentBankroll());
+                modal.classList.add('active');
+            }
+        }
+
+        function renderLevelsModal(currentBankroll) {
+            const container = document.getElementById('levelsContainer');
+            container.innerHTML = '';
+
+            LEVELS.forEach(lvl => {
+                const isCurrent = currentBankroll >= lvl.min && currentBankroll < lvl.max;
+                const isPast = currentBankroll >= lvl.max;
+                const isLocked = currentBankroll < lvl.min;
+                
+                let statusClass = '';
+                let iconColor = lvl.color;
+                let borderColor = lvl.border;
+                
+                if (isLocked) {
+                    statusClass = 'locked bg-slate-800/50';
+                    iconColor = 'text-slate-600';
+                    borderColor = 'border-slate-700';
+                } else if (isCurrent) {
+                    statusClass = 'current bg-slate-800 border-2';
+                } else {
+                    statusClass = 'bg-slate-800/80';
+                }
+
+                const progress = Math.min(100, Math.max(0, ((currentBankroll - lvl.min) / (lvl.max - lvl.min)) * 100));
+                
+                const html = `
+                    <div class="level-card ${statusClass} rounded-xl p-5 relative overflow-hidden ${borderColor}">
+                        ${isCurrent ? `<div class="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg uppercase">Nível Atual</div>` : ''}
+                        
+                        <div class="flex items-start gap-4">
+                            <div class="p-4 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center w-16 h-16 shrink-0">
+                                <i class="fa-solid ${lvl.icon} ${iconColor} text-2xl"></i>
+                            </div>
+                            
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-bold text-white mb-1">${lvl.name}</h3>
+                                <p class="text-xs text-slate-400 font-mono mb-3 uppercase tracking-wider">Range: ${formatCurrency(lvl.min)} - ${lvl.max > 99999 ? '∞' : formatCurrency(lvl.max)}</p>
+                                
+                                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-3">
+                                    <p class="text-sm text-slate-300"><strong class="${lvl.color}">Estratégia:</strong> ${lvl.strategy}</p>
+                                </div>
+
+                                ${!isLocked ? `
+                                    <div class="relative pt-1">
+                                        <div class="flex mb-1 items-center justify-between">
+                                            <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${isCurrent ? 'text-blue-200 bg-blue-900' : 'text-slate-400 bg-slate-800'}">
+                                                ${isPast ? 'Concluído' : `${progress.toFixed(1)}% Completo`}
+                                            </span>
+                                        </div>
+                                        <div class="overflow-hidden h-2 text-xs flex rounded bg-slate-900">
+                                            <div style="width:${isPast ? 100 : progress}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${lvl.bg}"></div>
+                                        </div>
+                                    </div>
+                                ` : `<div class="flex items-center gap-2 text-slate-500 text-sm mt-2"><i class="fa-solid fa-lock"></i> Bloqueado</div>`}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // --- UI UPDATES ---
+
+        function updateUI() {
+            if (!appData.sessions) appData.sessions = [];
+            appData.sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let currentBankroll = appData.settings.initialBankroll;
+            let totalProfit = 0;
+            let totalInvested = 0;
+            let totalVolume = 0;
+
+            appData.sessions.forEach(s => {
+                currentBankroll += s.profit;
+                if (s.type === 'grind') {
+                    totalProfit += s.profit;
+                    totalInvested += s.invested;
+                    totalVolume += s.volume;
+                }
+            });
+
+            const roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+            const abi = totalVolume > 0 ? totalInvested / totalVolume : 0;
+
+            document.getElementById('playerNameDisplay').innerText = appData.settings.playerName ? `${appData.settings.playerName}:` : 'Jogador:';
+            document.getElementById('headerBankrollUSD').innerText = formatCurrency(currentBankroll);
+            document.getElementById('headerBankrollBRL').innerText = formatCurrencyBRL(currentBankroll * activeRate);
+            document.getElementById('panoramaBankroll').innerText = formatCurrency(currentBankroll);
+            document.getElementById('panoramaBRL').innerText = `≈ ${formatCurrencyBRL(currentBankroll * activeRate)}`;
+
+            document.getElementById('dashProfit').innerText = formatCurrency(totalProfit);
+            document.getElementById('dashProfit').className = `text-lg font-mono font-bold ${totalProfit >= 0 ? 'text-poker-green' : 'text-poker-red'}`;
+            document.getElementById('dashROI').innerText = roi.toFixed(1) + '%';
+            document.getElementById('dashABI').innerText = formatCurrency(abi);
+            document.getElementById('dashVolume').innerText = totalVolume;
+
+            updatePanoramaLogic(currentBankroll);
+            renderTable();
+            renderMiniChart(appData.settings.initialBankroll);
+        }
+
+        function updatePanoramaLogic(bankroll) {
+            // Find current level logic from LEVELS array
+            const currentLevel = LEVELS.find(l => bankroll >= l.min && bankroll < l.max) || LEVELS[LEVELS.length - 1];
+            const nextLevel = LEVELS[LEVELS.indexOf(currentLevel) + 1];
+
+            const card = document.getElementById('panoramaCard');
+            const badge = document.getElementById('zoneBadge');
+            const bar = document.getElementById('zoneProgressBar');
+            const abiDisplay = document.getElementById('panoramaABI');
+            const quoteDisplay = document.getElementById('panoramaQuote');
+            
+            // Update Card Styles based on Level Color
+            let colorClass = `border-l-${currentLevel.color.split('-')[1]}-500`; // Extract color name
+            // Fallback hack for tailwind classes dynamically
+            if(currentLevel.id === 1) colorClass = "border-l-red-500 bg-gradient-to-r from-slate-900 to-red-900/10";
+            if(currentLevel.id === 2) colorClass = "border-l-yellow-500 bg-gradient-to-r from-slate-900 to-yellow-900/10";
+            if(currentLevel.id === 3) colorClass = "border-l-emerald-500 bg-gradient-to-r from-slate-900 to-emerald-900/10";
+            if(currentLevel.id === 4) colorClass = "border-l-blue-500 bg-gradient-to-r from-slate-900 to-blue-900/10";
+            if(currentLevel.id === 5) colorClass = "border-l-purple-500 bg-gradient-to-r from-slate-900 to-purple-900/10";
+            if(currentLevel.id === 6) colorClass = "border-l-amber-400 bg-gradient-to-r from-slate-900 to-amber-400/10";
+
+            card.className = `card p-6 md:p-8 relative overflow-hidden transition-colors duration-500 border-l-4 ${colorClass}`;
+            
+            badge.innerText = currentLevel.name.toUpperCase();
+            badge.className = `px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-white border border-slate-600`;
+            
+            // Progress Calculation for current level
+            let progress = 0;
+            if (nextLevel) {
+                progress = ((bankroll - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100;
+            } else {
+                progress = 100;
+            }
+            
+            bar.style.width = `${Math.max(5, progress)}%`;
+            bar.className = `h-full ${currentLevel.bg} transition-all duration-1000`;
+
+            // Suggest ABI based on Level Strategy
+            // Extract numbers from strategy string simply or use hardcoded logic if needed
+            // For now, simpler visual update based on level ID
+            let abiText = "Variável";
+            if(currentLevel.id === 1) abiText = "$0.25 - $2.00";
+            if(currentLevel.id === 2) abiText = "Max $5.00";
+            if(currentLevel.id === 3) abiText = "$4.50 - $5.50";
+            if(currentLevel.id === 4) abiText = "$8.88 - $10.50";
+            if(currentLevel.id === 5) abiText = "$15.00 - $25.00";
+            if(currentLevel.id === 6) abiText = "$50.00+";
+            
+            abiDisplay.innerText = abiText;
+            
+            // Quotes logic
+            const quotes = {
+                1: "Disciplina é liberdade. Recupere a base.",
+                2: "Um degrau de cada vez. Evite o tilt.",
+                3: "Volume cura variância. Mantenha o foco.",
+                4: "Agressividade seletiva. Escolha seus alvos.",
+                5: "Estudo profundo supera talento. Revise mãos.",
+                6: "O céu é o limite. Mantenha a humildade."
+            };
+            quoteDisplay.innerText = `"${quotes[currentLevel.id]}"`;
+
+            // Update Mini Gamification Bar
+            document.getElementById('currentLevelName').innerText = currentLevel.name;
+            document.getElementById('miniXpBar').style.width = `${Math.max(5, progress)}%`;
+            document.getElementById('miniXpBar').className = `h-1.5 rounded-full ${currentLevel.bg}`;
+            document.getElementById('nextLevelTarget').innerText = nextLevel ? formatCurrency(currentLevel.max) : "MAX";
+
+            calculateStreak();
+        }
+
+        function calculateStreak() {
+            if (!appData.sessions) return;
+            const dates = [...new Set(appData.sessions.filter(s => s.type === 'grind').map(s => s.date))].sort();
+            let streak = 0;
+            let today = new Date().toISOString().split('T')[0];
+            let yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            
+            if (!dates.includes(today) && !dates.includes(yesterday)) {
+                streak = 0;
+            } else {
+                let currentCheck = dates.includes(today) ? new Date() : new Date(Date.now() - 86400000);
+                while (true) {
+                    const dateStr = currentCheck.toISOString().split('T')[0];
+                    if (dates.includes(dateStr)) {
+                        streak++;
+                        currentCheck.setDate(currentCheck.getDate() - 1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            document.getElementById('streakCount').innerText = streak;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            if (!appData.sessions) return;
+            const recent = [...appData.sessions].reverse().slice(0, 8); 
+            recent.forEach(s => {
+                let colorClass = s.profit >= 0 ? 'text-emerald-400' : 'text-red-400';
+                let typeIcon = s.type === 'grind' ? '<i class="fa-solid fa-gamepad text-slate-500"></i>' : 
+                               s.type === 'deposit' ? '<i class="fa-solid fa-arrow-up text-emerald-500"></i>' : 
+                               '<i class="fa-solid fa-arrow-down text-red-500"></i>';
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800 transition-colors border-b border-slate-800";
+                tr.innerHTML = `
+                    <td class="p-4 text-slate-400 font-mono text-xs">${formatDate(s.date)}</td>
+                    <td class="p-4 text-slate-300 flex items-center gap-2">${typeIcon} <span class="capitalize">${s.type}</span></td>
+                    <td class="p-4 text-slate-300">${s.location || '-'}</td>
+                    <td class="p-4 text-right text-slate-500">${s.invested > 0 ? formatCurrency(s.invested) : '-'}</td>
+                    <td class="p-4 text-right text-slate-500">${s.return > 0 ? formatCurrency(s.return) : '-'}</td>
+                    <td class="p-4 text-right font-bold ${colorClass}">${formatCurrency(s.profit)}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="deleteSession(${s.id})" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- EXPORT / IMPORT / CHART UTILS ---
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const node = document.createElement('a');
+            node.setAttribute("href", dataStr);
+            node.setAttribute("download", "poker_bankroll_backup_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(node);
+            node.click();
+            node.remove();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (confirm("Restaurar dados?")) { appData = imported; saveData(); alert("Sucesso!"); }
+                } catch (err) { alert("Erro JSON."); }
+            };
+            reader.readAsText(file);
+        }
+        
+        function clearAllData() {
+            if(confirm("Reset total?")) { localStorage.removeItem('poker_pro_data'); location.reload(); }
+        }
+
+        function updateLocationDatalist() {
+            const list = document.getElementById('locationsList');
+            if(!list) return;
+            list.innerHTML = '';
+            if (appData.settings && appData.settings.locations) {
+                appData.settings.locations.forEach(loc => {
+                    const opt = document.createElement('option');
+                    opt.value = loc;
+                    list.appendChild(opt);
+                });
+            }
+        }
+
+        function renderMiniChart(initial) {
+            const ctx = document.getElementById('miniChart').getContext('2d');
+            if (charts.mini) charts.mini.destroy();
+            let balance = initial;
+            const data = [initial]; 
+            const labels = ['Início'];
+            if (appData.sessions) {
+                appData.sessions.forEach(s => { balance += s.profit; data.push(balance); labels.push(formatDate(s.date)); });
+            }
+            charts.mini = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: [{ label: 'Bankroll', data: data, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+            });
+        }
+
+        function renderFullCharts() {
+            const ctxMain = document.getElementById('mainChart').getContext('2d');
+            if (charts.main) charts.main.destroy();
+            let balance = appData.settings.initialBankroll;
+            const dataMain = [balance];
+            const labelsMain = ['Início'];
+            if (appData.sessions) {
+                appData.sessions.forEach(s => { balance += s.profit; dataMain.push(balance); labelsMain.push(formatDate(s.date)); });
+            }
+            charts.main = new Chart(ctxMain, {
+                type: 'line',
+                data: { labels: labelsMain, datasets: [{ label: 'Evolução do Bankroll ($)', data: dataMain, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+            });
+
+            const ctxVol = document.getElementById('volumeChart').getContext('2d');
+            if (charts.vol) charts.vol.destroy();
+            const grindSessions = appData.sessions ? appData.sessions.filter(s => s.type === 'grind') : [];
+            const volData = grindSessions.map(s => s.volume);
+            const volLabels = grindSessions.map(s => formatDate(s.date));
+            charts.vol = new Chart(ctxVol, {
+                type: 'bar',
+                data: { labels: volLabels, datasets: [{ label: 'Volume (Jogos)', data: volData, backgroundColor: '#3b82f6' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#334155' } } } }
+            });
+
+            const ctxLoc = document.getElementById('locationChart').getContext('2d');
+            if (charts.loc) charts.loc.destroy();
+            let locData = {};
+            grindSessions.forEach(s => { if (!locData[s.location]) locData[s.location] = 0; locData[s.location] += s.profit; });
+            charts.loc = new Chart(ctxLoc, {
+                type: 'doughnut',
+                data: { labels: Object.keys(locData), datasets: [{ data: Object.values(locData), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function formatCurrency(val) { return '$' + val.toFixed(2); }
+        function formatCurrencyBRL(val) { return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function formatDate(str) { if(!str) return ''; const [y,m,d] = str.split('-'); return `${d}/${m}`; }
+
+    </script>
+</body>
+</html>
