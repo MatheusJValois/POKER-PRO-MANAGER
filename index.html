@@ -167,7 +167,7 @@
                 cloudStatus: { connected: false, text: 'Offline', msg: 'Conectando...' },
                 isRemoteUpdate: false,
                 levels: LEVELS_CFG,
-                charts: {},
+                charts: { main: null, volume: null, location: null, mini: null },
 
                 init() {
                     const saved = localStorage.getItem('poker_pro_v7_pko');
@@ -176,7 +176,6 @@
                             const data = JSON.parse(saved);
                             this.sessions = data.sessions || [];
                             if (data.settings) this.settings = {...this.settings, ...data.settings};
-                            // Fallback for older saves
                             if (!this.settings.syncId) this.settings.syncId = 'minha-banca-pko';
                         } catch(e) { console.error("Erro ao carregar", e); }
                     }
@@ -187,7 +186,20 @@
                     if(window.startCloud) window.startCloud(this);
                     else window.addEventListener('firebase-ready', () => { if(window.startCloud) window.startCloud(this); });
                     
-                    this.$watch('sessions', () => { this.updateCharts(); this.renderMiniChart(); });
+                    // Watcher para troca de abas e limpeza de gráficos
+                    this.$watch('activeTab', (val) => {
+                        if (val === 'dashboard') {
+                            this.destroyCharts(['main', 'volume', 'location']);
+                            this.renderMiniChart();
+                        } else if (val === 'charts') {
+                            this.destroyCharts(['mini']);
+                            this.renderCharts();
+                        } else {
+                            this.destroyCharts(['mini', 'main', 'volume', 'location']);
+                        }
+                    });
+
+                    this.$watch('sessions', () => { this.updateCharts(); });
                     setTimeout(() => this.renderMiniChart(), 500);
                 },
 
@@ -279,52 +291,144 @@
                     reader.readAsText(e.target.files[0]);
                 },
                 resetAll() { if(confirm("Tem certeza absoluta?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
+                
+                // --- CHARTING FIXES ---
+                destroyCharts(keys) {
+                    keys.forEach(k => {
+                        if (this.charts[k]) {
+                            this.charts[k].destroy();
+                            this.charts[k] = null;
+                        }
+                    });
+                },
+
                 renderMiniChart() {
-                    const ctx = document.getElementById('miniChartEl')?.getContext('2d');
-                    if(!ctx) return;
-                    if(this.charts.mini) this.charts.mini.destroy();
-                    const data = this.buildChartData();
-                    this.charts.mini = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: data.labels,
-                            datasets: [{
-                                data: data.values,
-                                borderColor: '#3b82f6', backgroundColor: (context) => {
-                                    const ctx = context.chart.ctx;
-                                    const gradient = ctx.createLinearGradient(0, 0, 0, 100);
-                                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                                    return gradient;
-                                },
-                                borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
-                            }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display:false}, y: {display:false} } }
+                    this.$nextTick(() => {
+                        const el = document.getElementById('miniChartEl');
+                        if(!el || el.offsetParent === null) return;
+                        
+                        const ctx = el.getContext('2d');
+                        if(this.charts.mini) this.charts.mini.destroy();
+                        const data = this.buildChartData();
+                        this.charts.mini = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    data: data.values,
+                                    borderColor: '#3b82f6', 
+                                    backgroundColor: (context) => {
+                                        const ctx = context.chart.ctx;
+                                        // FIX: Safety Check for Context
+                                        if (!ctx) return 'rgba(59, 130, 246, 0.1)';
+                                        const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+                                        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                                        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                                        return gradient;
+                                    },
+                                    borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
+                                }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display:false}, y: {display:false} } }
+                        });
                     });
                 },
                 renderCharts() {
-                    setTimeout(() => {
+                    this.$nextTick(() => {
+                        const elMain = document.getElementById('mainChartEl');
+                        if (!elMain || elMain.offsetParent === null) return;
+
                         const data = this.buildChartData();
-                        const ctxMain = document.getElementById('mainChartEl')?.getContext('2d');
-                        if (ctxMain) {
-                            if(this.charts.main) this.charts.main.destroy();
-                            this.charts.main = new Chart(ctxMain, {
-                                type: 'line',
+                        
+                        // Main Chart
+                        const ctxMain = elMain.getContext('2d');
+                        if(this.charts.main) this.charts.main.destroy();
+                        this.charts.main = new Chart(ctxMain, {
+                            type: 'line',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    label: 'Bankroll ($)', data: data.values,
+                                    borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                    borderWidth: 2, fill: true, tension: 0.3,
+                                    pointRadius: 3, pointHoverRadius: 6
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false, 
+                                scales: { 
+                                    y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
+                                    x: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
+                                },
+                                plugins: { legend: {labels: {color: '#e2e8f0'}} }
+                            }
+                        });
+
+                        // Volume Chart
+                        const elVol = document.getElementById('volumeChartEl');
+                        if (elVol) {
+                            const ctxVol = elVol.getContext('2d');
+                            const volData = this.buildVolumeData();
+                            if(this.charts.volume) this.charts.volume.destroy();
+                            this.charts.volume = new Chart(ctxVol, {
+                                type: 'bar',
                                 data: {
-                                    labels: data.labels,
+                                    labels: volData.labels,
                                     datasets: [{
-                                        label: 'Bankroll ($)', data: data.values,
-                                        borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                        borderWidth: 2, fill: true, tension: 0.3
+                                        label: 'Torneios',
+                                        data: volData.values,
+                                        backgroundColor: '#3b82f6',
+                                        borderRadius: 4
                                     }]
                                 },
-                                options: { responsive: true, maintainAspectRatio: false, scales: { y: {grid: {color: '#334155'}}, x: {grid: {display: false}} } }
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: { 
+                                        y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
+                                        x: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
+                                    },
+                                    plugins: { legend: {display: false} }
+                                }
                             });
                         }
-                    }, 50);
+
+                        // Location Chart
+                        const elLoc = document.getElementById('locationChartEl');
+                        if (elLoc) {
+                            const ctxLoc = elLoc.getContext('2d');
+                            const locData = this.buildLocationData();
+                            if(this.charts.location) this.charts.location.destroy();
+                            this.charts.location = new Chart(ctxLoc, {
+                                type: 'bar',
+                                indexAxis: 'y',
+                                data: {
+                                    labels: locData.labels,
+                                    datasets: [{
+                                        label: 'Profit ($)',
+                                        data: locData.values,
+                                        backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'),
+                                        borderRadius: 4
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: { 
+                                        x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, 
+                                        y: {grid: {display: false}, ticks: {color: '#94a3b8'}} 
+                                    },
+                                    plugins: { legend: {display: false} }
+                                }
+                            });
+                        }
+                    });
                 },
-                updateCharts() { },
+                updateCharts() { 
+                    if(this.activeTab === 'charts') this.renderCharts();
+                    else if(this.activeTab === 'dashboard') this.renderMiniChart();
+                },
                 buildChartData() {
                     let b = this.settings.initialBankroll;
                     let values = [b], labels = ['Start'];
@@ -332,6 +436,23 @@
                         b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date));
                     });
                     return { values, labels };
+                },
+                buildVolumeData() {
+                    const counts = {};
+                    this.sessions.filter(s => s.type === 'grind').forEach(s => {
+                        const d = new Date(s.date);
+                        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                        counts[key] = (counts[key] || 0) + (s.volume || 0);
+                    });
+                    return { labels: Object.keys(counts), values: Object.values(counts) };
+                },
+                buildLocationData() {
+                    const profits = {};
+                    this.sessions.filter(s => s.type === 'grind').forEach(s => {
+                        const loc = s.location || 'Outros';
+                        profits[loc] = (profits[loc] || 0) + (s.profit || 0);
+                    });
+                    return { labels: Object.keys(profits), values: Object.values(profits) };
                 }
             }));
         });
@@ -408,7 +529,7 @@
                                     <div class="space-y-1 font-mono">
                                         <div class="flex justify-between"><span class="text-slate-400">Sup</span> <span x-text="lvl.abiSupport"></span></div>
                                         <div class="flex justify-between text-white font-bold"><span class="text-primary-500">Core</span> <span x-text="lvl.abiCore"></span></div>
-                                        <div class="flex justify-between"><span class="text-slate-400">Shot</span> <span class="text-red-400" x-text="lvl.abiShot"></span></div>
+                                        <div class="flex justify-between"><span class="text-slate-400">Shot</span> <span class="text-white font-mono font-bold" x-text="lvl.abiShot"></span></div>
                                     </div>
                                 </div>
                                 <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
@@ -418,7 +539,7 @@
                                     </div>
                                 </div>
                                 <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
-                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Resumo</p>
+                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Foco do Nível</p>
                                     <div class="flex-grow flex items-center">
                                         <p class="text-slate-300 italic leading-snug" x-text="lvl.rules"></p>
                                     </div>
@@ -449,7 +570,7 @@
                 <!-- Nav Desktop -->
                 <nav class="hidden md:flex bg-white/5 p-1 rounded-full border border-white/5">
                     <template x-for="t in ['dashboard', 'charts', 'settings']">
-                        <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                        <button @click="activeTab = t" 
                                 class="px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2"
                                 :class="activeTab === t ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'">
                             <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid"></i>
@@ -488,7 +609,7 @@
         <div class="md:hidden border-t border-white/5 bg-dark-900/50 backdrop-blur-lg">
             <div class="flex justify-around p-2">
                 <template x-for="t in ['dashboard', 'charts', 'settings']">
-                    <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                    <button @click="activeTab = t" 
                             class="flex-1 py-3 flex flex-col items-center gap-1 text-xs font-medium transition-colors"
                             :class="activeTab === t ? 'text-primary-500' : 'text-slate-500'">
                         <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid text-lg"></i>
@@ -629,7 +750,7 @@
                             <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-layer-group mr-1"></i> Volume</div>
                             <div class="text-xl font-mono font-bold text-white" x-text="totalVolume"></div>
                         </div>
-                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28 relative overflow-hidden group cursor-pointer" @click="activeTab = 'charts'; renderCharts()">
+                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28 relative overflow-hidden group cursor-pointer" @click="activeTab = 'charts'">
                             <div class="text-slate-400 text-xs font-bold uppercase z-10 relative">Gráfico</div>
                             <div class="absolute inset-0 opacity-30 group-hover:opacity-50 transition-opacity">
                                 <canvas id="miniChartEl"></canvas>
