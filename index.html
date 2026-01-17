@@ -210,8 +210,7 @@
                         });
 
                         this.$watch('sessions', () => { 
-                            if(this.activeTab === 'charts') this.renderCharts();
-                            if(this.activeTab === 'dashboard') this.renderMiniChart();
+                            this.updateCharts();
                         });
                         
                         setTimeout(() => this.renderMiniChart(), 500);
@@ -311,36 +310,42 @@
                             const el = document.getElementById('miniChartEl');
                             if(!el || el.offsetParent === null) return;
                             
-                            const ctx = el.getContext('2d');
-                            if(_chartInstances.mini) _chartInstances.mini.destroy();
-
-                            let gradient = null;
-                            try {
-                                gradient = ctx.createLinearGradient(0, 0, 0, el.clientHeight || 100);
-                                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                                gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                            } catch(e) { gradient = 'rgba(59, 130, 246, 0.1)'; }
-
                             const data = this.buildChartData();
-                            
-                            _chartInstances.mini = new Chart(ctx, {
-                                type: 'line',
-                                data: {
-                                    labels: data.labels,
-                                    datasets: [{
-                                        data: data.values,
-                                        borderColor: '#3b82f6', 
-                                        backgroundColor: gradient,
-                                        borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
-                                    }]
-                                },
-                                options: { 
-                                    responsive: true, 
-                                    maintainAspectRatio: false, 
-                                    plugins: { legend: {display: false} }, 
-                                    scales: { x: {display:false}, y: {display:false} } 
-                                }
-                            });
+
+                            if (_chartInstances.mini) {
+                                // ATUALIZAR GRÁFICO EXISTENTE
+                                _chartInstances.mini.data.labels = data.labels;
+                                _chartInstances.mini.data.datasets[0].data = data.values;
+                                _chartInstances.mini.update('none'); // 'none' previne animação de redesenho total
+                            } else {
+                                // CRIAR NOVO GRÁFICO
+                                const ctx = el.getContext('2d');
+                                let gradient = null;
+                                try {
+                                    gradient = ctx.createLinearGradient(0, 0, 0, el.clientHeight || 100);
+                                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                                } catch(e) { gradient = 'rgba(59, 130, 246, 0.1)'; }
+
+                                _chartInstances.mini = new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: data.labels,
+                                        datasets: [{
+                                            data: data.values,
+                                            borderColor: '#3b82f6', 
+                                            backgroundColor: gradient,
+                                            borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true, 
+                                        maintainAspectRatio: false, 
+                                        plugins: { legend: {display: false} }, 
+                                        scales: { x: {display:false}, y: {display:false} } 
+                                    }
+                                });
+                            }
                         });
                     },
                     renderCharts() {
@@ -350,71 +355,89 @@
 
                             const data = this.buildChartData();
                             
-                            const ctxMain = elMain.getContext('2d');
-                            if(_chartInstances.main) _chartInstances.main.destroy();
-                            
-                            _chartInstances.main = new Chart(ctxMain, {
-                                type: 'line',
-                                data: {
-                                    labels: data.labels,
-                                    datasets: [{
-                                        label: 'Bankroll ($)', data: data.values,
-                                        borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                        borderWidth: 2, fill: true, tension: 0.3,
-                                        pointRadius: 3, pointHoverRadius: 6
-                                    }]
-                                },
-                                options: { 
-                                    responsive: true, maintainAspectRatio: false, 
-                                    scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                    plugins: { legend: {labels: {color: '#e2e8f0'}} }
-                                }
-                            });
-
-                            const elVol = document.getElementById('volumeChartEl');
-                            if (elVol && elVol.offsetParent !== null) {
-                                const ctxVol = elVol.getContext('2d');
-                                const volData = this.buildVolumeData();
-                                if(_chartInstances.volume) _chartInstances.volume.destroy();
-                                _chartInstances.volume = new Chart(ctxVol, {
-                                    type: 'bar',
+                            // MAIN CHART
+                            if (_chartInstances.main) {
+                                _chartInstances.main.data.labels = data.labels;
+                                _chartInstances.main.data.datasets[0].data = data.values;
+                                _chartInstances.main.update('none');
+                            } else {
+                                const ctxMain = elMain.getContext('2d');
+                                _chartInstances.main = new Chart(ctxMain, {
+                                    type: 'line',
                                     data: {
-                                        labels: volData.labels,
+                                        labels: data.labels,
                                         datasets: [{
-                                            label: 'Torneios', data: volData.values,
-                                            backgroundColor: '#3b82f6', borderRadius: 4
+                                            label: 'Bankroll ($)', data: data.values,
+                                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                            borderWidth: 2, fill: true, tension: 0.3,
+                                            pointRadius: 3, pointHoverRadius: 6
                                         }]
                                     },
-                                    options: {
-                                        responsive: true, maintainAspectRatio: false,
+                                    options: { 
+                                        responsive: true, maintainAspectRatio: false, 
                                         scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                        plugins: { legend: {display: false} }
+                                        plugins: { legend: {labels: {color: '#e2e8f0'}} }
                                     }
                                 });
                             }
 
+                            // VOLUME CHART
+                            const elVol = document.getElementById('volumeChartEl');
+                            if (elVol && elVol.offsetParent !== null) {
+                                const volData = this.buildVolumeData();
+                                if (_chartInstances.volume) {
+                                    _chartInstances.volume.data.labels = volData.labels;
+                                    _chartInstances.volume.data.datasets[0].data = volData.values;
+                                    _chartInstances.volume.update('none');
+                                } else {
+                                    const ctxVol = elVol.getContext('2d');
+                                    _chartInstances.volume = new Chart(ctxVol, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: volData.labels,
+                                            datasets: [{
+                                                label: 'Torneios', data: volData.values,
+                                                backgroundColor: '#3b82f6', borderRadius: 4
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true, maintainAspectRatio: false,
+                                            scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
+                                            plugins: { legend: {display: false} }
+                                        }
+                                    });
+                                }
+                            }
+
+                            // LOCATION CHART
                             const elLoc = document.getElementById('locationChartEl');
                             if (elLoc && elLoc.offsetParent !== null) {
-                                const ctxLoc = elLoc.getContext('2d');
                                 const locData = this.buildLocationData();
-                                if(_chartInstances.location) _chartInstances.location.destroy();
-                                _chartInstances.location = new Chart(ctxLoc, {
-                                    type: 'bar',
-                                    indexAxis: 'y',
-                                    data: {
-                                        labels: locData.labels,
-                                        datasets: [{
-                                            label: 'Profit ($)', data: locData.values,
-                                            backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'),
-                                            borderRadius: 4
-                                        }]
-                                    },
-                                    options: {
-                                        responsive: true, maintainAspectRatio: false,
-                                        scales: { x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, y: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                        plugins: { legend: {display: false} }
-                                    }
-                                });
+                                if (_chartInstances.location) {
+                                    _chartInstances.location.data.labels = locData.labels;
+                                    _chartInstances.location.data.datasets[0].data = locData.values;
+                                    _chartInstances.location.data.datasets[0].backgroundColor = locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444');
+                                    _chartInstances.location.update('none');
+                                } else {
+                                    const ctxLoc = elLoc.getContext('2d');
+                                    _chartInstances.location = new Chart(ctxLoc, {
+                                        type: 'bar',
+                                        indexAxis: 'y',
+                                        data: {
+                                            labels: locData.labels,
+                                            datasets: [{
+                                                label: 'Profit ($)', data: locData.values,
+                                                backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'),
+                                                borderRadius: 4
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true, maintainAspectRatio: false,
+                                            scales: { x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, y: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
+                                            plugins: { legend: {display: false} }
+                                        }
+                                    });
+                                }
                             }
                         });
                     },
@@ -564,7 +587,7 @@
                 <!-- Nav Desktop -->
                 <nav class="hidden md:flex bg-white/5 p-1 rounded-full border border-white/5">
                     <template x-for="t in ['dashboard', 'charts', 'settings']">
-                        <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                        <button @click="activeTab = t" 
                                 class="px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2"
                                 :class="activeTab === t ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'">
                             <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid"></i>
@@ -603,7 +626,7 @@
         <div class="md:hidden border-t border-white/5 bg-dark-900/50 backdrop-blur-lg">
             <div class="flex justify-around p-2">
                 <template x-for="t in ['dashboard', 'charts', 'settings']">
-                    <button @click="activeTab = t; if(t==='charts') renderCharts()" 
+                    <button @click="activeTab = t" 
                             class="flex-1 py-3 flex flex-col items-center gap-1 text-xs font-medium transition-colors"
                             :class="activeTab === t ? 'text-primary-500' : 'text-slate-500'">
                         <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid text-lg"></i>
