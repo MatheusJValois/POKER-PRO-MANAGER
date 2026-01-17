@@ -158,7 +158,7 @@
             Alpine.data('pokerApp', () => ({
                 activeTab: 'dashboard',
                 sessions: [],
-                settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'] },
+                settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'], syncId: 'minha-banca-pko' },
                 form: { date: new Date().toISOString().split('T')[0], type: 'grind', location: '', context: 'Online', volume: '', invested: '', return: '', amount: '' },
                 inputCurrency: 'USD',
                 currencyRate: 5.0,
@@ -176,6 +176,8 @@
                             const data = JSON.parse(saved);
                             this.sessions = data.sessions || [];
                             if (data.settings) this.settings = {...this.settings, ...data.settings};
+                            // Fallback for older saves
+                            if (!this.settings.syncId) this.settings.syncId = 'minha-banca-pko';
                         } catch(e) { console.error("Erro ao carregar", e); }
                     }
                     
@@ -511,26 +513,35 @@
                     
                     <!-- Left Side: Bankroll -->
                     <div>
-                        <div class="flex items-center gap-3 mb-2">
-                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white/10 text-white border border-white/10" x-text="currentLevelObj.name"></span>
-                            <span class="text-xs text-slate-400 font-mono" x-text="'ABI Médio: ' + formatMoney(abi)"></span>
-                        </div>
-                        
-                        <div class="flex items-baseline gap-2 mb-2">
+                        <!-- Bankroll -->
+                        <div class="flex items-baseline gap-2 mb-6 mt-4">
                             <h2 class="text-5xl md:text-7xl font-mono font-bold text-white tracking-tighter drop-shadow-2xl" x-text="formatMoney(bankroll)"></h2>
                             <span class="text-2xl text-slate-600 font-bold">USD</span>
                         </div>
-                        
-                        <div class="w-full bg-dark-900 h-3 rounded-full overflow-hidden border border-white/5 relative">
-                            <div class="h-full transition-all duration-1000 relative overflow-hidden" 
-                                 :class="currentLevelObj.color.replace('text-', 'bg-')" 
-                                 :style="'width: ' + levelProgress + '%'">
-                                 <div class="absolute inset-0 bg-white/20 animate-[pulse_2s_infinite]"></div>
+
+                        <!-- Progress Section with Integrated Status -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-end">
+                                <!-- Level Name moved here -->
+                                <span class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                                    <i :class="['fa-solid', currentLevelObj.icon]" class="text-slate-400"></i>
+                                    <span x-text="currentLevelObj.name"></span>
+                                </span>
+                                <span class="text-xs font-mono text-slate-400" x-text="Math.round(levelProgress) + '%'"></span>
                             </div>
-                        </div>
-                        <div class="flex justify-between mt-2 text-xs font-mono text-slate-500">
-                            <span x-text="'Next: ' + nextLevelTarget"></span>
-                            <span x-text="Math.round(levelProgress) + '%'"></span>
+
+                            <div class="w-full bg-dark-900 h-3 rounded-full overflow-hidden border border-white/5 relative shadow-inner">
+                                <div class="h-full transition-all duration-1000 relative overflow-hidden" 
+                                     :class="currentLevelObj.color.replace('text-', 'bg-')" 
+                                     :style="'width: ' + levelProgress + '%'">
+                                     <div class="absolute inset-0 bg-white/20 animate-[pulse_2s_infinite]"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                                 <span>Atual: <span class="text-slate-400" x-text="formatMoney(currentLevelObj.min)"></span></span>
+                                 <span>Meta: <span class="text-slate-300 font-bold" x-text="nextLevelTarget"></span></span>
+                            </div>
                         </div>
                     </div>
 
@@ -547,11 +558,10 @@
                                 <p class="text-[9px] text-slate-400 mt-1" x-text="currentLevelObj.pSupport"></p>
                             </div>
                             
-                            <!-- Core -->
-                            <div class="text-center p-3 rounded-xl bg-gradient-to-b from-primary-900/20 to-dark-950/50 border border-primary-500/20 relative transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary-500/10">
-                                <div class="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md">Main</div>
+                            <!-- Core (Modified) -->
+                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
                                 <p class="text-[10px] uppercase font-bold text-primary-400 mb-1">Core</p>
-                                <p class="text-lg font-mono text-white font-bold" x-text="currentLevelObj.abiCore"></p>
+                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiCore"></p>
                                 <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
                                     <div class="h-full bg-primary-500" :style="'width: ' + currentLevelObj.pCore"></div>
                                 </div>
@@ -789,6 +799,19 @@
                 
                 <div class="glass-card p-8 rounded-2xl space-y-6 flex flex-col">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4">
+                        <i class="fa-solid fa-cloud text-slate-400"></i> Sincronização
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">ID de Sincronização</label>
+                            <div class="flex gap-2">
+                                <input type="text" x-model="settings.syncId" @change="saveLocal(); location.reload()" class="w-full p-3 rounded-xl glass-input mt-1">
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Use este mesmo ID em outros dispositivos para sincronizar os dados.</p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4 mt-4">
                         <i class="fa-solid fa-database text-slate-400"></i> Gestão de Dados
                     </h3>
                     <div class="flex-grow space-y-4">
@@ -839,31 +862,51 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     alpineContext.cloudStatus = { connected: true, text: 'Online', msg: 'Sincronizado' };
-                    // Path simplificado para uso privado: /users/{userId}/bankroll/main
-                    const userDocRef = doc(db, 'users', user.uid, 'bankroll', 'main');
+                    
+                    let unsubscribe = null;
 
-                    onSnapshot(userDocRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            const cloudData = docSnap.data();
-                            if (JSON.stringify(cloudData.sessions) !== JSON.stringify(alpineContext.sessions)) {
-                                console.log("Recebendo dados da nuvem...");
-                                alpineContext.isRemoteUpdate = true;
-                                alpineContext.sessions = cloudData.sessions || [];
-                                if(cloudData.settings) alpineContext.settings = {...alpineContext.settings, ...cloudData.settings};
-                                alpineContext.saveLocal(false); 
-                                alpineContext.isRemoteUpdate = false;
-                                alpineContext.updateCharts();
+                    const setupListener = () => {
+                        if(unsubscribe) unsubscribe();
+                        
+                        // Use a Sync ID from settings, or fallback to user.uid if empty (though we will provide a default)
+                        const docId = alpineContext.settings.syncId || 'default-player';
+                        // Path: bankrolls/{docId} - simpler structure
+                        const userDocRef = doc(db, 'bankrolls', docId);
+
+                        unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                            if (docSnap.exists()) {
+                                const cloudData = docSnap.data();
+                                if (JSON.stringify(cloudData.sessions) !== JSON.stringify(alpineContext.sessions)) {
+                                    console.log("Recebendo dados da nuvem...");
+                                    alpineContext.isRemoteUpdate = true;
+                                    alpineContext.sessions = cloudData.sessions || [];
+                                    if(cloudData.settings) alpineContext.settings = {...alpineContext.settings, ...cloudData.settings};
+                                    alpineContext.saveLocal(false); 
+                                    alpineContext.isRemoteUpdate = false;
+                                    alpineContext.updateCharts();
+                                }
+                            } else {
+                                alpineContext.pushToCloud();
                             }
-                        } else {
-                            alpineContext.pushToCloud();
-                        }
-                    }, (error) => {
-                        console.error("Sync Error:", error);
-                        alpineContext.cloudStatus = { connected: false, text: 'Erro Sync', msg: error.message };
+                        }, (error) => {
+                            console.error("Sync Error:", error);
+                            alpineContext.cloudStatus = { connected: false, text: 'Erro Sync', msg: error.message };
+                        });
+                    }
+
+                    // Initial setup
+                    setupListener();
+
+                    // Watch for setting changes to restart listener
+                    alpineContext.$watch('settings.syncId', () => {
+                        setupListener();
                     });
 
                     alpineContext.pushToCloud = () => {
                         if(alpineContext.isRemoteUpdate) return;
+                        const docId = alpineContext.settings.syncId || 'default-player';
+                        const userDocRef = doc(db, 'bankrolls', docId);
+                        
                         setDoc(userDocRef, {
                             sessions: JSON.parse(JSON.stringify(alpineContext.sessions)),
                             settings: JSON.parse(JSON.stringify(alpineContext.settings)),
