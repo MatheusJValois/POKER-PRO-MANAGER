@@ -7,6 +7,12 @@
     <!-- Bibliotecas Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDK (Compatibilidade para rodar em arquivo local) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
     <!-- Ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Fontes -->
@@ -115,15 +121,22 @@
                     </div>
                     <div>
                         <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">POKER PRO <span class="text-blue-500">MANAGER</span></h1>
-                        <p class="text-xs text-slate-400 font-mono tracking-widest">GESTOR DE BANKROLL v4.2</p>
+                        <p class="text-xs text-slate-400 font-mono tracking-widest">v5.0 CLOUD</p>
                     </div>
                 </div>
 
-                <!-- Visor de Bankroll -->
+                <!-- Visor de Bankroll e Status Nuvem -->
                 <div class="flex flex-col items-end">
-                    <div class="flex items-baseline gap-2">
-                        <span class="text-sm text-slate-400" id="playerNameDisplay">Jogador:</span>
-                        <span id="headerBankrollUSD" class="text-2xl md:text-3xl font-mono font-bold text-emerald-400">$0.00</span>
+                    <div class="flex items-center gap-3">
+                        <!-- Cloud Status Icon -->
+                        <div id="cloudStatus" class="hidden flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-500" title="Status da Nuvem">
+                            <i class="fa-solid fa-cloud"></i> <span id="cloudStatusText">Offline</span>
+                        </div>
+
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-sm text-slate-400 hidden md:inline" id="playerNameDisplay">Jogador:</span>
+                            <span id="headerBankrollUSD" class="text-2xl md:text-3xl font-mono font-bold text-emerald-400">$0.00</span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 text-xs">
                         <span id="headerBankrollBRL" class="text-slate-300 font-mono">R$ 0,00</span>
@@ -134,7 +147,7 @@
             </div>
 
             <!-- Navegação (Tabs) -->
-            <nav class="flex gap-4 md:gap-6 border-b md:border-b-0 border-slate-700 overflow-x-auto w-full md:w-auto">
+            <nav class="flex gap-4 md:gap-6 border-b md:border-b-0 border-slate-700 overflow-x-auto w-full md:w-auto mt-4 md:mt-2">
                 <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active pb-3 px-2 font-semibold whitespace-nowrap flex items-center gap-2">
                     <i class="fa-solid fa-chart-pie"></i> Dashboard
                 </button>
@@ -289,22 +302,22 @@
 
                         <form id="sessionForm" onsubmit="handleSessionSubmit(event)" class="space-y-5">
                             <!-- Tipo de Registro -->
-                            <div class="flex gap-6 mb-2 border-b border-slate-700 pb-4">
-                                <label class="flex items-center gap-2 cursor-pointer group">
+                            <div class="flex gap-6 mb-2 border-b border-slate-700 pb-4 overflow-x-auto">
+                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                                     <div class="relative flex items-center">
                                         <input type="radio" name="recordType" value="grind" checked onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-blue-500 transition-all">
                                         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
                                     </div>
                                     <span class="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">Grind (Sessão)</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer group">
+                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                                     <div class="relative flex items-center">
                                         <input type="radio" name="recordType" value="deposit" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-emerald-500 transition-all">
                                         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
                                     </div>
                                     <span class="text-slate-300 text-sm font-medium group-hover:text-emerald-400 transition-colors">Depósito</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer group">
+                                <label class="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                                     <div class="relative flex items-center">
                                         <input type="radio" name="recordType" value="withdraw" onchange="toggleFormMode()" class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-slate-500 checked:border-red-500 transition-all">
                                         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 opacity-0 peer-checked:opacity-100 transition-opacity"></div>
@@ -445,34 +458,36 @@
                         </div>
                     </div>
 
-                    <!-- Configurações de Moeda e Zonas -->
+                    <!-- Configurações da Nuvem (Firebase) -->
                     <div class="card p-6">
-                        <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">
-                            <i class="fa-solid fa-coins"></i> Economia & Metas
-                        </h3>
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-cloud text-blue-400"></i> Sincronização
+                            </h3>
+                            <span class="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded border border-blue-500/50">PRO FEATURE</span>
+                        </div>
 
                         <div class="space-y-4">
-                            <div class="p-4 bg-slate-800 rounded border border-slate-700">
-                                <label class="flex items-center gap-2 mb-2 cursor-pointer">
-                                    <input type="checkbox" id="cfgManualRate" class="accent-blue-500" onchange="toggleManualRate()">
-                                    <span class="text-sm font-bold text-slate-300">Usar Câmbio Manual</span>
-                                </label>
-                                <div id="manualRateContainer" class="hidden">
-                                    <label class="block text-xs text-slate-500 mb-1">Taxa USD para BRL (R$)</label>
-                                    <input type="number" step="0.01" id="cfgExchangeRate" class="w-full p-2 rounded input-dark" onchange="saveSettings()" placeholder="5.00">
-                                </div>
-                                <p class="text-xs text-slate-500 mt-2" id="currentRateDisplay">Taxa atual: ...</p>
+                            <p class="text-xs text-slate-400">
+                                Conecte ao seu próprio banco de dados Firebase para sincronizar dados automaticamente entre PC e Celular.
+                            </p>
+                            
+                            <label class="block text-xs text-slate-500 mb-1">Configuração do Firebase (JSON)</label>
+                            <textarea id="cfgFirebaseConfig" rows="6" class="w-full p-2 rounded input-dark font-mono text-xs" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}' onchange="initCloudSync()"></textarea>
+                            
+                            <div class="flex items-center gap-2 mt-2">
+                                <div id="cloudIndicatorSettings" class="w-3 h-3 rounded-full bg-slate-600"></div>
+                                <span id="cloudStatusSettings" class="text-xs text-slate-400">Desconectado</span>
                             </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs text-emerald-400 mb-1">Meta: Conforto ($)</label>
-                                    <input type="number" id="cfgZoneComfort" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-blue-400 mb-1">Meta: Ataque ($)</label>
-                                    <input type="number" id="cfgZoneAttack" class="w-full p-2 rounded input-dark" onchange="saveSettings()">
-                                </div>
+                            
+                            <div class="bg-slate-800 p-3 rounded border border-slate-700 mt-4">
+                                <p class="text-xs text-slate-500 mb-2 font-bold">Como obter?</p>
+                                <ol class="list-decimal list-inside text-xs text-slate-500 space-y-1">
+                                    <li>Crie um projeto em <a href="https://console.firebase.google.com" target="_blank" class="text-blue-400 hover:underline">console.firebase.google.com</a></li>
+                                    <li>Adicione um Web App e copie o "firebaseConfig"</li>
+                                    <li>No menu Firestore Database, crie um banco e defina as regras como "Test Mode" (para uso pessoal)</li>
+                                    <li>Cole o objeto JSON acima.</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
@@ -480,7 +495,7 @@
                     <!-- Dados e Segurança -->
                     <div class="card p-6 md:col-span-2">
                         <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">
-                            <i class="fa-solid fa-database"></i> Dados & Segurança
+                            <i class="fa-solid fa-database"></i> Dados Locais
                         </h3>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -502,7 +517,7 @@
                             <div class="p-4 bg-slate-800 rounded border border-slate-700">
                                 <h4 class="font-bold text-slate-300 mb-2">Memória</h4>
                                 <button onclick="clearLocations()" class="bg-slate-700 hover:bg-slate-600 text-yellow-500 text-sm py-2 px-4 rounded transition-colors w-full flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-eraser"></i> Limpar Locais Salvos
+                                    <i class="fa-solid fa-eraser"></i> Limpar Locais
                                 </button>
                             </div>
                         </div>
@@ -519,7 +534,7 @@
 
     <!-- FOOTER -->
     <footer class="bg-slate-950 py-4 text-center text-xs text-slate-600 border-t border-slate-800">
-        Gestor de Bankroll Poker PRO v4.2 | Grind Seguro
+        Gestor de Bankroll Poker PRO v5.0 | Cloud Sync Ready
     </footer>
 
     <!-- JAVASCRIPT LOGIC -->
@@ -545,35 +560,51 @@
                 manualRateValue: 5.00,
                 zoneComfort: 900,
                 zoneAttack: 1400,
-                locations: ['GGPoker', 'PokerStars', '888Poker', 'Live Home Game']
+                locations: ['GGPoker', 'PokerStars', '888Poker', 'Live Home Game'],
+                firebaseConfig: ''
             }
         };
 
         let liveCurrencyRate = 5.00; 
         let activeRate = 5.00; 
         let charts = {}; 
+        
+        // Cloud State
+        let db = null;
+        let isCloudActive = false;
+        let isRemoteUpdate = false;
 
         // --- INICIALIZAÇÃO ---
         document.addEventListener('DOMContentLoaded', async () => {
-            loadData();
-            await fetchCurrency(); 
+            loadData(); // Load local first
             
+            // Set Default Dates
             document.getElementById('sDate').valueAsDate = new Date();
             
             // Populate Config
+            populateConfigFields();
+            
+            // Init Cloud
+            initCloudSync();
+            
+            // Fetch Currency
+            await fetchCurrency(); 
+            
+            updateUI();
+            updateLocationDatalist();
+        });
+
+        function populateConfigFields() {
             document.getElementById('cfgInitialBankroll').value = appData.settings.initialBankroll;
             document.getElementById('cfgStopLoss').value = appData.settings.dailyStopLoss;
             document.getElementById('cfgPlayerName').value = appData.settings.playerName || '';
             document.getElementById('cfgZoneComfort').value = appData.settings.zoneComfort || 900;
             document.getElementById('cfgZoneAttack').value = appData.settings.zoneAttack || 1400;
-            
             document.getElementById('cfgManualRate').checked = appData.settings.manualRateEnabled || false;
             document.getElementById('cfgExchangeRate').value = appData.settings.manualRateValue || 5.00;
+            document.getElementById('cfgFirebaseConfig').value = appData.settings.firebaseConfig || '';
             toggleManualRate(false); 
-            
-            updateUI();
-            updateLocationDatalist();
-        });
+        }
 
         // --- CORE FUNCTIONS ---
 
@@ -582,17 +613,141 @@
                 const saved = localStorage.getItem('poker_pro_data');
                 if (saved) {
                     const parsed = JSON.parse(saved);
-                    appData = { ...appData, ...parsed, settings: { ...appData.settings, ...parsed.settings } };
+                    appData = { ...appData, ...parsed, settings: { ...appData.settings, ...(parsed.settings || {}) } };
                 }
             } catch (e) {
-                console.error("Erro ao carregar dados:", e);
+                console.error("Erro ao carregar dados locais:", e);
             }
         }
 
         function saveData() {
             localStorage.setItem('poker_pro_data', JSON.stringify(appData));
             updateUI();
+            
+            // Push to Cloud
+            if(isCloudActive && !isRemoteUpdate) {
+                pushToCloud();
+            }
         }
+
+        // --- CLOUD SYNC (FIREBASE) ---
+
+        function initCloudSync() {
+            const configStr = document.getElementById('cfgFirebaseConfig').value.trim();
+            if(!configStr) {
+                appData.settings.firebaseConfig = '';
+                isCloudActive = false;
+                updateCloudUI('Offline', 'bg-slate-600', 'text-slate-500');
+                return;
+            }
+
+            try {
+                // Save config locally if changed
+                if(configStr !== appData.settings.firebaseConfig) {
+                    appData.settings.firebaseConfig = configStr;
+                    saveData();
+                }
+
+                // Parse Config
+                const firebaseConfig = JSON.parse(configStr);
+                
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                db = firebase.firestore();
+                
+                // Auth Anonymously to allow read/write (assuming rules allow it)
+                firebase.auth().signInAnonymously().then(() => {
+                    console.log("Logado no Firebase");
+                    isCloudActive = true;
+                    updateCloudUI('Online', 'bg-emerald-500', 'text-emerald-400');
+                    startCloudListener();
+                }).catch((error) => {
+                    console.error("Erro Auth Firebase:", error);
+                    updateCloudUI('Erro Auth', 'bg-red-500', 'text-red-400');
+                });
+
+            } catch (e) {
+                console.error("Erro Config Firebase:", e);
+                updateCloudUI('Erro Config', 'bg-red-500', 'text-red-400');
+                isCloudActive = false;
+            }
+        }
+
+        function updateCloudUI(status, dotColor, textColor) {
+            // Header Indicator
+            const cloudStatus = document.getElementById('cloudStatus');
+            const cloudText = document.getElementById('cloudStatusText');
+            
+            if(isCloudActive) {
+                cloudStatus.classList.remove('hidden');
+                cloudStatus.className = `flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-800 border border-${dotColor.split('-')[1]}-500/50 ${textColor}`;
+                cloudText.innerText = status;
+            } else {
+                cloudStatus.classList.add('hidden');
+            }
+
+            // Settings Indicator
+            document.getElementById('cloudIndicatorSettings').className = `w-3 h-3 rounded-full ${dotColor}`;
+            document.getElementById('cloudStatusSettings').innerText = status;
+            document.getElementById('cloudStatusSettings').className = `text-xs ${textColor}`;
+        }
+
+        function startCloudListener() {
+            // Listen to a document. We'll use a fixed ID 'user_data' for simplicity in this single-user app scenario.
+            // In a multi-user app, this would be based on Auth UID.
+            db.collection("bankrolls").doc("user_default").onSnapshot((doc) => {
+                if (doc.exists) {
+                    const cloudData = doc.data();
+                    
+                    // Simple Merge Logic: If cloud data is newer/different, update local.
+                    // To prevent loops, we verify content hash or simple stringify comparison
+                    const currentLocalStr = JSON.stringify(appData.sessions);
+                    const cloudSessionsStr = JSON.stringify(cloudData.sessions);
+
+                    if (currentLocalStr !== cloudSessionsStr) {
+                        console.log("Nuvem atualizada. Sincronizando...");
+                        isRemoteUpdate = true; // Prevent echo back
+                        
+                        // Merge Data: We trust Cloud as "Source of Truth" for sessions
+                        appData.sessions = cloudData.sessions || [];
+                        
+                        // Optional: Merge settings, but keep local API config
+                        if(cloudData.settings) {
+                            const localConfig = appData.settings.firebaseConfig;
+                            appData.settings = { ...appData.settings, ...cloudData.settings };
+                            appData.settings.firebaseConfig = localConfig; // Restore config so we don't lose connection
+                        }
+
+                        saveData(); // Save to localStorage
+                        updateUI();
+                        isRemoteUpdate = false;
+                    }
+                } else {
+                    // Doc doesn't exist, create it with local data
+                    pushToCloud();
+                }
+            });
+        }
+
+        function pushToCloud() {
+            if(!db || !isCloudActive) return;
+            
+            // Remove huge config string from cloud payload to save space/security
+            const payload = JSON.parse(JSON.stringify(appData));
+            delete payload.settings.firebaseConfig; 
+
+            db.collection("bankrolls").doc("user_default").set(payload)
+                .then(() => {
+                    console.log("Dados enviados para nuvem.");
+                })
+                .catch((error) => {
+                    console.error("Erro ao salvar na nuvem:", error);
+                });
+        }
+
+        // --- CURRENCY & SETTINGS ---
 
         async function fetchCurrency() {
             try {
@@ -726,17 +881,6 @@
             }
         }
 
-        // --- SETTINGS LOGIC ---
-
-        function toggleManualRate(save = true) {
-            const enabled = document.getElementById('cfgManualRate').checked;
-            const container = document.getElementById('manualRateContainer');
-            if (enabled) container.classList.remove('hidden');
-            else container.classList.add('hidden');
-            if (save) saveSettings();
-            else updateRateDisplay();
-        }
-
         function saveSettings() {
             appData.settings.initialBankroll = parseFloat(document.getElementById('cfgInitialBankroll').value);
             appData.settings.dailyStopLoss = parseFloat(document.getElementById('cfgStopLoss').value);
@@ -745,8 +889,9 @@
             appData.settings.zoneAttack = parseFloat(document.getElementById('cfgZoneAttack').value);
             appData.settings.manualRateEnabled = document.getElementById('cfgManualRate').checked;
             appData.settings.manualRateValue = parseFloat(document.getElementById('cfgExchangeRate').value);
+            // Firebase config is saved in initCloudSync trigger
             
-            // Atualizar niveis baseados nas configs
+            // Update Levels
             LEVELS[1].max = appData.settings.zoneComfort;
             LEVELS[2].min = appData.settings.zoneComfort;
             LEVELS[2].max = appData.settings.zoneAttack;
@@ -754,6 +899,16 @@
 
             saveData();
             updateRateDisplay();
+            initCloudSync(); // Re-init cloud if config changed
+        }
+
+        function toggleManualRate(save = true) {
+            const enabled = document.getElementById('cfgManualRate').checked;
+            const container = document.getElementById('manualRateContainer');
+            if (enabled) container.classList.remove('hidden');
+            else container.classList.add('hidden');
+            if (save) saveSettings();
+            else updateRateDisplay();
         }
 
         function clearLocations() {
@@ -768,8 +923,6 @@
 
         function toggleLevelsModal() {
             const modal = document.getElementById('levelsModal');
-            const container = document.getElementById('levelsContainer');
-            
             if (modal.classList.contains('active')) {
                 modal.classList.remove('active');
             } else {
@@ -787,19 +940,9 @@
                 const isPast = currentBankroll >= lvl.max;
                 const isLocked = currentBankroll < lvl.min;
                 
-                let statusClass = '';
-                let iconColor = lvl.color;
-                let borderColor = lvl.border;
-                
-                if (isLocked) {
-                    statusClass = 'locked bg-slate-800/50';
-                    iconColor = 'text-slate-600';
-                    borderColor = 'border-slate-700';
-                } else if (isCurrent) {
-                    statusClass = 'current bg-slate-800 border-2';
-                } else {
-                    statusClass = 'bg-slate-800/80';
-                }
+                let statusClass = isLocked ? 'locked bg-slate-800/50' : (isCurrent ? 'current bg-slate-800 border-2' : 'bg-slate-800/80');
+                let iconColor = isLocked ? 'text-slate-600' : lvl.color;
+                let borderColor = isLocked ? 'border-slate-700' : lvl.border;
 
                 const progress = Math.min(100, Math.max(0, ((currentBankroll - lvl.min) / (lvl.max - lvl.min)) * 100));
                 
@@ -811,15 +954,12 @@
                             <div class="p-4 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center w-16 h-16 shrink-0">
                                 <i class="fa-solid ${lvl.icon} ${iconColor} text-2xl"></i>
                             </div>
-                            
                             <div class="flex-grow">
                                 <h3 class="text-xl font-bold text-white mb-1">${lvl.name}</h3>
                                 <p class="text-xs text-slate-400 font-mono mb-3 uppercase tracking-wider">Range: ${formatCurrency(lvl.min)} - ${lvl.max > 99999 ? '∞' : formatCurrency(lvl.max)}</p>
-                                
                                 <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-3">
                                     <p class="text-sm text-slate-300"><strong class="${lvl.color}">Estratégia:</strong> ${lvl.strategy}</p>
                                 </div>
-
                                 ${!isLocked ? `
                                     <div class="relative pt-1">
                                         <div class="flex mb-1 items-center justify-between">
@@ -840,16 +980,14 @@
             });
         }
 
-        // --- UI UPDATES ---
+        // --- UI & CHARTS ---
 
         function updateUI() {
             if (!appData.sessions) appData.sessions = [];
             appData.sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             let currentBankroll = appData.settings.initialBankroll;
-            let totalProfit = 0;
-            let totalInvested = 0;
-            let totalVolume = 0;
+            let totalProfit = 0, totalInvested = 0, totalVolume = 0;
 
             appData.sessions.forEach(s => {
                 currentBankroll += s.profit;
@@ -881,7 +1019,6 @@
         }
 
         function updatePanoramaLogic(bankroll) {
-            // Find current level logic from LEVELS array
             const currentLevel = LEVELS.find(l => bankroll >= l.min && bankroll < l.max) || LEVELS[LEVELS.length - 1];
             const nextLevel = LEVELS[LEVELS.indexOf(currentLevel) + 1];
 
@@ -891,9 +1028,8 @@
             const abiDisplay = document.getElementById('panoramaABI');
             const quoteDisplay = document.getElementById('panoramaQuote');
             
-            // Update Card Styles based on Level Color
-            let colorClass = `border-l-${currentLevel.color.split('-')[1]}-500`; // Extract color name
-            // Fallback hack for tailwind classes dynamically
+            let colorClass = `border-l-${currentLevel.color.split('-')[1]}-500`; 
+            // Fallback for dynamic class construction
             if(currentLevel.id === 1) colorClass = "border-l-red-500 bg-gradient-to-r from-slate-900 to-red-900/10";
             if(currentLevel.id === 2) colorClass = "border-l-yellow-500 bg-gradient-to-r from-slate-900 to-yellow-900/10";
             if(currentLevel.id === 3) colorClass = "border-l-emerald-500 bg-gradient-to-r from-slate-900 to-emerald-900/10";
@@ -902,35 +1038,21 @@
             if(currentLevel.id === 6) colorClass = "border-l-amber-400 bg-gradient-to-r from-slate-900 to-amber-400/10";
 
             card.className = `card p-6 md:p-8 relative overflow-hidden transition-colors duration-500 border-l-4 ${colorClass}`;
-            
             badge.innerText = currentLevel.name.toUpperCase();
-            badge.className = `px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-800 text-white border border-slate-600`;
             
-            // Progress Calculation for current level
-            let progress = 0;
-            if (nextLevel) {
-                progress = ((bankroll - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100;
-            } else {
-                progress = 100;
-            }
-            
+            let progress = nextLevel ? ((bankroll - currentLevel.min) / (currentLevel.max - currentLevel.min)) * 100 : 100;
             bar.style.width = `${Math.max(5, progress)}%`;
             bar.className = `h-full ${currentLevel.bg} transition-all duration-1000`;
 
-            // Suggest ABI based on Level Strategy
-            // Extract numbers from strategy string simply or use hardcoded logic if needed
-            // For now, simpler visual update based on level ID
-            let abiText = "Variável";
-            if(currentLevel.id === 1) abiText = "$0.25 - $2.00";
+            // Simple ABI logic based on level
+            let abiText = "$0.25 - $2.00";
             if(currentLevel.id === 2) abiText = "Max $5.00";
             if(currentLevel.id === 3) abiText = "$4.50 - $5.50";
             if(currentLevel.id === 4) abiText = "$8.88 - $10.50";
             if(currentLevel.id === 5) abiText = "$15.00 - $25.00";
             if(currentLevel.id === 6) abiText = "$50.00+";
-            
             abiDisplay.innerText = abiText;
             
-            // Quotes logic
             const quotes = {
                 1: "Disciplina é liberdade. Recupere a base.",
                 2: "Um degrau de cada vez. Evite o tilt.",
@@ -941,7 +1063,6 @@
             };
             quoteDisplay.innerText = `"${quotes[currentLevel.id]}"`;
 
-            // Update Mini Gamification Bar
             document.getElementById('currentLevelName').innerText = currentLevel.name;
             document.getElementById('miniXpBar').style.width = `${Math.max(5, progress)}%`;
             document.getElementById('miniXpBar').className = `h-1.5 rounded-full ${currentLevel.bg}`;
@@ -1001,7 +1122,6 @@
             });
         }
 
-        // --- EXPORT / IMPORT / CHART UTILS ---
         function exportData() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
             const node = document.createElement('a');
@@ -1019,7 +1139,7 @@
             reader.onload = function(e) {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (confirm("Restaurar dados?")) { appData = imported; saveData(); alert("Sucesso!"); }
+                    if (confirm("Restaurar dados?")) { appData = imported; saveData(); alert("Sucesso!"); location.reload(); }
                 } catch (err) { alert("Erro JSON."); }
             };
             reader.readAsText(file);
