@@ -51,7 +51,6 @@
             background-attachment: fixed;
         }
         
-        /* Glassmorphism Cards */
         .glass-card { 
             background: rgba(30, 41, 59, 0.7); 
             backdrop-filter: blur(12px); 
@@ -71,8 +70,14 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); 
             background: rgba(15, 23, 42, 0.9);
         }
+        
+        .tag-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s;
+        }
+        .tag-item:hover { background: rgba(255,255,255,0.1); }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -89,80 +94,51 @@
 
         [x-cloak] { display: none !important; }
         
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .stop-loss-alert { animation: pulse-red 2s infinite; border: 2px solid #ef4444; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
 
-    <!-- LÓGICA (Atualizada com a tabela CSV) -->
+    <!-- LÓGICA -->
     <script>
         const LEVELS_CFG = [
-            { 
-                id: 1, name: "Base / Reconstrução", min: -99999, max: 600, 
-                color: "text-red-400", border: "level-gradient-1", icon: "fa-shield-halved", 
-                abiSupport: "$1.00 – $2.00", abiCore: "$2.50 – $3.00", abiShot: "$3.20",
-                pSupport: "40%", pCore: "50%", pShot: "10%",
-                dist: "40% Suporte / 50% Core / 10% Shot",
-                rules: "Foco em recuperar confiança e bankroll com baixo risco."
-            },
-            { 
-                id: 2, name: "Micro confortável", min: 600, max: 800, 
-                color: "text-orange-400", border: "level-gradient-2", icon: "fa-couch", 
-                abiSupport: "$2.00 – $2.50", abiCore: "$3.00 – $4.00", abiShot: "$5.40",
-                pSupport: "30%", pCore: "50%", pShot: "20%",
-                dist: "30% Suporte / 50% Core / 20% Shot",
-                rules: "Aumentar volume gradualmente mantendo a segurança."
-            },
-            { 
-                id: 3, name: "Zona ideal PKO", min: 800, max: 1000, 
-                color: "text-yellow-400", border: "level-gradient-3", icon: "fa-crosshairs", 
-                abiSupport: "$2.50 – $3.20", abiCore: "$4.00 – $5.40", abiShot: "$8.88",
-                pSupport: "25%", pCore: "55%", pShot: "20%",
-                dist: "25% Suporte / 55% Core / 20% Shot",
-                rules: "Maximizar lucros explorando a dinâmica de bounties."
-            },
-            { 
-                id: 4, name: "Expansão controlada", min: 1000, max: 1300, 
-                color: "text-emerald-400", border: "level-gradient-4", icon: "fa-chart-line", 
-                abiSupport: "$3.20 – $4.00", abiCore: "$5.00 – $6.00", abiShot: "$8.88 – $10.80",
-                pSupport: "20%", pCore: "55%", pShot: "25%",
-                dist: "20% Suporte / 55% Core / 25% Shot",
-                rules: "Testar limites superiores com gestão de risco rigorosa."
-            },
-            { 
-                id: 5, name: "Consolidação", min: 1300, max: 1600, 
-                color: "text-cyan-400", border: "level-gradient-5", icon: "fa-chess-rook", 
-                abiSupport: "$4.00 – $5.00", abiCore: "$6.00 – $7.00", abiShot: "$10.80",
-                pSupport: "15%", pCore: "60%", pShot: "25%",
-                dist: "15% Suporte / 60% Core / 25% Shot",
-                rules: "Firmar presença nos limites médios e reduzir variância."
-            },
-            { 
-                id: 6, name: "Ataque Low Stakes", min: 1600, max: 2200, 
-                color: "text-blue-400", border: "level-gradient-6", icon: "fa-jet-fighter-up", 
-                abiSupport: "$5.40 – $8.00", abiCore: "$8.88 – $10.80", abiShot: "$16.50 – $22.00",
-                pSupport: "10%", pCore: "60%", pShot: "30%",
-                dist: "10% Suporte / 60% Core / 30% Shot",
-                rules: "Agressividade seletiva nos melhores torneios do dia."
-            },
-            { 
-                id: 7, name: "Low Stakes Pro", min: 2200, max: 9999999, 
-                color: "text-purple-400", border: "level-gradient-7", icon: "fa-crown", 
-                abiSupport: "$8.00 – $10.80", abiCore: "$15.00 – $22.00", abiShot: "$33.00+",
-                pSupport: "10%", pCore: "65%", pShot: "25%",
-                dist: "10% Suporte / 65% Core / 25% Shot",
-                rules: "Dominar o field regular e buscar os grandes troféus."
-            }
+            { id: 1, name: "Base / Reconstrução", min: -99999, max: 600, color: "text-red-400", border: "level-gradient-1", icon: "fa-shield-halved", abiSupport: "$1.00 – $2.00", abiCore: "$2.50 – $3.00", abiShot: "$3.20", pSupport: "40%", pCore: "50%", pShot: "10%", dist: "40% Suporte / 50% Core / 10% Shot", rules: "Foco em recuperar confiança e bankroll com baixo risco." },
+            { id: 2, name: "Micro confortável", min: 600, max: 800, color: "text-orange-400", border: "level-gradient-2", icon: "fa-couch", abiSupport: "$2.00 – $2.50", abiCore: "$3.00 – $4.00", abiShot: "$5.40", pSupport: "30%", pCore: "50%", pShot: "20%", dist: "30% Suporte / 50% Core / 20% Shot", rules: "Aumentar volume gradualmente mantendo a segurança." },
+            { id: 3, name: "Zona ideal PKO", min: 800, max: 1000, color: "text-yellow-400", border: "level-gradient-3", icon: "fa-crosshairs", abiSupport: "$2.50 – $3.20", abiCore: "$4.00 – $5.40", abiShot: "$8.88", pSupport: "25%", pCore: "55%", pShot: "20%", dist: "25% Suporte / 55% Core / 20% Shot", rules: "Maximizar lucros explorando a dinâmica de bounties." },
+            { id: 4, name: "Expansão controlada", min: 1000, max: 1300, color: "text-emerald-400", border: "level-gradient-4", icon: "fa-chart-line", abiSupport: "$3.20 – $4.00", abiCore: "$5.00 – $6.00", abiShot: "$8.88 – $10.80", pSupport: "20%", pCore: "55%", pShot: "25%", dist: "20% Suporte / 55% Core / 25% Shot", rules: "Testar limites superiores com gestão de risco rigorosa." },
+            { id: 5, name: "Consolidação", min: 1300, max: 1600, color: "text-cyan-400", border: "level-gradient-5", icon: "fa-chess-rook", abiSupport: "$4.00 – $5.00", abiCore: "$6.00 – $7.00", abiShot: "$10.80", pSupport: "15%", pCore: "60%", pShot: "25%", dist: "15% Suporte / 60% Core / 25% Shot", rules: "Firmar presença nos limites médios e reduzir variância." },
+            { id: 6, name: "Ataque Low Stakes", min: 1600, max: 2200, color: "text-blue-400", border: "level-gradient-6", icon: "fa-jet-fighter-up", abiSupport: "$5.40 – $8.00", abiCore: "$8.88 – $10.80", abiShot: "$16.50 – $22.00", pSupport: "10%", pCore: "60%", pShot: "30%", dist: "10% Suporte / 60% Core / 30% Shot", rules: "Agressividade seletiva nos melhores torneios do dia." },
+            { id: 7, name: "Low Stakes Pro", min: 2200, max: 9999999, color: "text-purple-400", border: "level-gradient-7", icon: "fa-crown", abiSupport: "$8.00 – $10.80", abiCore: "$15.00 – $22.00", abiShot: "$33.00+", pSupport: "10%", pCore: "65%", pShot: "25%", dist: "10% Suporte / 65% Core / 25% Shot", rules: "Dominar o field regular e buscar os grandes troféus." }
         ];
 
         document.addEventListener('alpine:init', () => {
             Alpine.data('pokerApp', () => {
-                let _chartInstances = { main: null, volume: null, location: null, mini: null };
+                let _chartInstances = { main: null, volume: null, location: null, mini: null, monthly: null, dow: null, typeDist: null };
 
                 return {
                     activeTab: 'dashboard',
                     sessions: [],
-                    settings: { playerName: 'Hero', initialBankroll: 1010.36, dailyStopLoss: 50, locations: ['GGPoker', 'PokerStars', '888', 'Live'], syncId: 'minha-banca-pko' },
-                    form: { date: new Date().toISOString().split('T')[0], type: 'grind', location: '', context: 'Online', volume: '', invested: '', return: '', amount: '' },
+                    settings: { 
+                        playerName: 'Hero', 
+                        initialBankroll: 1010.36, 
+                        dailyStopLoss: 50, 
+                        locations: ['GGPoker', 'PokerStars', '888Poker', 'Live'], 
+                        syncId: 'minha-banca-pko',
+                        gameTypes: ['Online MTT', 'Live MTT', 'Cash Game']
+                    },
+                    
+                    // Form State
+                    showFormModal: false,
+                    isEditing: false,
+                    form: { id: null, date: '', startTime: '', endTime: '', type: 'grind', location: '', context: '', volume: '', invested: '', return: '', amount: '', notes: '' },
+                    
+                    // Aux Inputs
+                    newLocationInput: '',
+                    newGameTypeInput: '',
+
+                    // Filters & State
+                    chartFilters: { range: 'all', type: 'all' },
+                    filters: { month: 'all', type: 'all' },
+
                     inputCurrency: 'USD',
                     currencyRate: 5.0,
                     showStopLoss: false,
@@ -177,51 +153,46 @@
                             try {
                                 const data = JSON.parse(saved);
                                 this.sessions = data.sessions || [];
-                                if (data.settings) this.settings = {...this.settings, ...data.settings};
-                                if (!this.settings.syncId) this.settings.syncId = 'minha-banca-pko';
+                                if (data.settings) {
+                                    this.settings = {...this.settings, ...data.settings};
+                                    if(!this.settings.gameTypes) this.settings.gameTypes = ['Online MTT', 'Live MTT', 'Cash Game'];
+                                }
                             } catch(e) { console.error("Erro ao carregar", e); }
                         }
                         
                         fetch('https://api.exchangerate-api.com/v4/latest/USD')
                             .then(r => r.json()).then(d => this.currencyRate = d.rates.BRL).catch(e => console.log('Erro Cotação'));
 
-                        // Event Listener para atualização externa (Firebase)
-                        window.addEventListener('external-data-changed', () => {
-                            this.updateCharts();
-                        });
+                        window.addEventListener('external-data-changed', () => { this.updateCharts(); });
 
                         if(window.startCloud) window.startCloud(this);
                         else window.addEventListener('firebase-ready', () => { if(window.startCloud) window.startCloud(this); });
                         
-                        // Watcher para troca de abas e renderização limpa
                         this.$watch('activeTab', (val) => {
-                            Object.keys(_chartInstances).forEach(k => {
-                                if (_chartInstances[k]) {
-                                    _chartInstances[k].destroy();
-                                    _chartInstances[k] = null;
-                                }
-                            });
-
-                            if (val === 'dashboard') {
-                                this.$nextTick(() => this.renderMiniChart());
-                            } else if (val === 'charts') {
-                                this.$nextTick(() => this.renderCharts());
-                            }
-                        });
-
-                        this.$watch('sessions', () => { 
-                            this.updateCharts();
+                            Object.keys(_chartInstances).forEach(k => { if (_chartInstances[k]) { _chartInstances[k].destroy(); _chartInstances[k] = null; } });
+                            if (val === 'dashboard') this.$nextTick(() => this.renderMiniChart());
+                            else if (val === 'charts') this.$nextTick(() => this.renderCharts());
                         });
                         
+                        this.$watch('chartFilters', () => { this.renderCharts(); });
+                        this.$watch('sessions', () => { this.updateCharts(); });
                         setTimeout(() => this.renderMiniChart(), 500);
                     },
 
+                    // Computed (Global)
                     get bankroll() { return this.settings.initialBankroll + this.sessions.reduce((acc, s) => acc + (s.profit || 0), 0); },
                     get totalProfit() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.profit || 0), 0); },
                     get totalInvested() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0); },
                     get totalVolume() { return this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.volume || 0), 0); },
-                    get roi() { return this.totalInvested > 0 ? ((this.totalProfit / this.totalInvested) * 100).toFixed(1) : 0; },
-                    get abi() { return this.totalVolume > 0 ? (this.totalInvested / this.totalVolume) : 0; },
+                    get profitPerGame() { return this.totalVolume > 0 ? (this.totalProfit / this.totalVolume) : 0; },
+                    get roi() { 
+                        const inv = this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0);
+                        return inv > 0 ? ((this.totalProfit / inv) * 100).toFixed(1) : 0; 
+                    },
+                    get abi() { 
+                        const inv = this.sessions.filter(s => s.type === 'grind').reduce((acc, s) => acc + (s.invested || 0), 0);
+                        return this.totalVolume > 0 ? (inv / this.totalVolume) : 0; 
+                    },
                     get currencySymbol() { return this.inputCurrency === 'USD' ? '$' : 'R$'; },
                     get todaysLoss() {
                         const today = new Date().toISOString().split('T')[0];
@@ -232,6 +203,12 @@
                     get nextLevelTarget() {
                         const idx = this.levels.indexOf(this.currentLevelObj);
                         return this.levels[idx+1] ? this.formatMoney(this.levels[idx+1].min) : 'MAX';
+                    },
+                    get nextLevelGap() {
+                        const idx = this.levels.indexOf(this.currentLevelObj);
+                        if (!this.levels[idx+1]) return null;
+                        const gap = this.levels[idx+1].min - this.bankroll;
+                        return gap > 0 ? this.formatMoney(gap) : '$0.00';
                     },
                     get levelProgress() {
                         const lvl = this.currentLevelObj;
@@ -252,31 +229,119 @@
                         return streak;
                     },
 
-                    addSession() {
+                    // Computed (Filtered for Charts)
+                    get filteredChartSessions() {
+                        let data = this.sessions.filter(s => s.type === 'grind');
+                        
+                        if (this.chartFilters.type !== 'all') {
+                            data = data.filter(s => s.context === this.chartFilters.type);
+                        }
+
+                        const now = new Date();
+                        if (this.chartFilters.range === 'year') {
+                            data = data.filter(s => new Date(s.date).getFullYear() === now.getFullYear());
+                        } else if (this.chartFilters.range === '30d') {
+                            const thirtyDaysAgo = new Date(now.getTime() - 30*24*60*60*1000);
+                            data = data.filter(s => new Date(s.date) >= thirtyDaysAgo);
+                        } else if (this.chartFilters.range === '90d') {
+                            const ninetyDaysAgo = new Date(now.getTime() - 90*24*60*60*1000);
+                            data = data.filter(s => new Date(s.date) >= ninetyDaysAgo);
+                        }
+
+                        return data.sort((a,b) => new Date(a.date) - new Date(b.date));
+                    },
+                    
+                    get chartStats() {
+                         const sessions = this.filteredChartSessions;
+                         const profit = sessions.reduce((acc, s) => acc + s.profit, 0);
+                         const invested = sessions.reduce((acc, s) => acc + s.invested, 0);
+                         const volume = sessions.reduce((acc, s) => acc + s.volume, 0);
+                         const roi = invested > 0 ? ((profit / invested) * 100).toFixed(1) : 0;
+                         return { profit, volume, roi };
+                    },
+
+                    // Computed (Records Tab)
+                    get filteredSessions() {
+                        return this.sessions.filter(s => {
+                            const dateMatch = this.filters.month === 'all' || s.date.startsWith(this.filters.month);
+                            const typeMatch = this.filters.type === 'all' || s.type === this.filters.type;
+                            return dateMatch && typeMatch;
+                        }).sort((a,b) => new Date(b.date + 'T' + (b.startTime || '00:00')) - new Date(a.date + 'T' + (a.startTime || '00:00')));
+                    },
+                    get uniqueMonths() {
+                        const months = new Set(this.sessions.map(s => s.date.slice(0, 7)));
+                        return Array.from(months).sort().reverse();
+                    },
+
+                    // Actions
+                    openForm(sessionToEdit = null) {
+                        this.isEditing = !!sessionToEdit;
+                        if (sessionToEdit) {
+                            this.form = JSON.parse(JSON.stringify(sessionToEdit));
+                            if(!this.form.notes) this.form.notes = '';
+                            if(!this.form.startTime) this.form.startTime = '';
+                            if(!this.form.endTime) this.form.endTime = '';
+                        } else {
+                            const now = new Date();
+                            const oneHourAgo = new Date(now.getTime() - 60*60*1000);
+                            this.form = {
+                                id: null, date: now.toISOString().split('T')[0], startTime: oneHourAgo.toTimeString().slice(0,5), endTime: now.toTimeString().slice(0,5),
+                                type: 'grind', location: this.settings.locations[0] || '', context: this.settings.gameTypes[0] || '', volume: '', invested: '', return: '', amount: '', notes: ''
+                            };
+                        }
+                        this.showFormModal = true;
+                    },
+
+                    saveSession() {
                         const f = this.form;
                         const mult = this.inputCurrency === 'BRL' ? (1/this.currencyRate) : 1;
                         let session = {
-                            id: Date.now(),
-                            date: f.date, type: f.type,
-                            location: f.type === 'grind' ? (f.location || 'Online') : (f.type === 'deposit' ? 'Depósito' : 'Saque')
+                            id: f.id || Date.now(),
+                            date: f.date, startTime: f.startTime, endTime: f.endTime,
+                            type: f.type, location: f.type === 'grind' ? f.location : (f.type === 'deposit' ? 'Depósito' : 'Saque'),
+                            notes: f.notes || ''
                         };
+
                         if(f.type === 'grind') {
                             session.volume = f.volume || 0;
                             session.invested = (f.invested || 0) * mult;
                             session.return = (f.return || 0) * mult;
                             session.profit = session.return - session.invested;
                             session.context = f.context;
-                            if(session.profit < 0 && (this.todaysLoss + Math.abs(session.profit)) >= this.settings.dailyStopLoss) this.showStopLoss = true;
-                            if(session.location && !this.settings.locations.includes(session.location)) this.settings.locations.push(session.location);
+                            if(session.profit < 0 && (this.todaysLoss + Math.abs(session.profit)) >= this.settings.dailyStopLoss) {
+                                this.showStopLoss = true;
+                            }
                         } else {
                             const val = (f.amount || 0) * mult;
                             session.profit = f.type === 'deposit' ? val : -val;
                             session.invested = 0; session.return = 0;
                         }
-                        this.sessions.push(session); this.saveLocal();
-                        this.form.invested = ''; this.form.return = ''; this.form.amount = '';
+
+                        if (this.isEditing) {
+                            const index = this.sessions.findIndex(s => s.id === session.id);
+                            if (index !== -1) {
+                                this.sessions.splice(index, 1, session);
+                            }
+                        } else {
+                            this.sessions.push(session);
+                        }
+                        this.saveLocal();
+                        this.showFormModal = false;
+                        this.updateCharts();
                     },
-                    deleteSession(id) { if(confirm('Apagar registro?')) { this.sessions = this.sessions.filter(s => s.id !== id); this.saveLocal(); } },
+
+                    deleteSession(id) {
+                        if(confirm('Tem certeza que deseja apagar este registro?')) {
+                            this.sessions = this.sessions.filter(s => s.id !== id);
+                            this.saveLocal();
+                        }
+                    },
+
+                    addLocation() { if(this.newLocationInput && !this.settings.locations.includes(this.newLocationInput)) { this.settings.locations.push(this.newLocationInput); this.newLocationInput = ''; this.saveLocal(); } },
+                    removeLocation(loc) { this.settings.locations = this.settings.locations.filter(l => l !== loc); this.saveLocal(); },
+                    addGameType() { if(this.newGameTypeInput && !this.settings.gameTypes.includes(this.newGameTypeInput)) { this.settings.gameTypes.push(this.newGameTypeInput); this.newGameTypeInput = ''; this.saveLocal(); } },
+                    removeGameType(type) { this.settings.gameTypes = this.settings.gameTypes.filter(t => t !== type); this.saveLocal(); },
+
                     saveLocal(sync = true) {
                         localStorage.setItem('poker_pro_v7_pko', JSON.stringify({ sessions: this.sessions, settings: this.settings }));
                         if(sync && this.pushToCloud) this.pushToCloud();
@@ -286,10 +351,26 @@
                     formatDate(s) { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}`; },
                     isCurrentLevel(l) { return this.currentLevelObj.id === l.id; },
                     isLocked(l) { return this.bankroll < l.min; },
+                    
                     exportData() {
                         const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({sessions: this.sessions, settings: this.settings}));
                         const node = document.createElement('a'); node.setAttribute("href", str); node.setAttribute("download", "bankroll_backup.json");
                         document.body.appendChild(node); node.click(); node.remove();
+                    },
+                    exportCSV() {
+                        let csvContent = "data:text/csv;charset=utf-8,ID,Data,Hora Inicio,Hora Fim,Tipo,Local,Contexto,Volume,Investido,Retorno,Lucro,Notas\n";
+                        this.sessions.forEach(s => {
+                            let row = [
+                                s.id, s.date, s.startTime || '', s.endTime || '', s.type, s.location || '', s.context || '', 
+                                s.volume || 0, s.invested || 0, s.return || 0, s.profit || 0, (s.notes || '').replace(/,/g, ';')
+                            ].join(",");
+                            csvContent += row + "\n";
+                        });
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", encodedUri);
+                        link.setAttribute("download", "poker_sessions.csv");
+                        document.body.appendChild(link); link.click(); link.remove();
                     },
                     importData(e) {
                         const reader = new FileReader();
@@ -303,154 +384,97 @@
                         };
                         reader.readAsText(e.target.files[0]);
                     },
-                    resetAll() { if(confirm("Tem certeza absoluta?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
+                    resetAll() { if(confirm("Isso apagará tudo. Confirmar?")) { localStorage.removeItem('poker_pro_v7_pko'); location.reload(); } },
+                    
+                    destroyCharts(keys) { keys.forEach(k => { if (this.charts[k]) { this.charts[k].destroy(); this.charts[k] = null; } }); },
                     
                     renderMiniChart() {
                         this.$nextTick(() => {
                             const el = document.getElementById('miniChartEl');
                             if(!el || el.offsetParent === null) return;
-                            
-                            const data = this.buildChartData();
-
-                            if (_chartInstances.mini) {
-                                // ATUALIZAR GRÁFICO EXISTENTE
+                            const ctx = el.getContext('2d');
+                            if(_chartInstances.mini) {
+                                const data = this.buildChartData();
                                 _chartInstances.mini.data.labels = data.labels;
                                 _chartInstances.mini.data.datasets[0].data = data.values;
-                                _chartInstances.mini.update('none'); // 'none' previne animação de redesenho total
-                            } else {
-                                // CRIAR NOVO GRÁFICO
-                                const ctx = el.getContext('2d');
-                                let gradient = null;
-                                try {
-                                    gradient = ctx.createLinearGradient(0, 0, 0, el.clientHeight || 100);
-                                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                                } catch(e) { gradient = 'rgba(59, 130, 246, 0.1)'; }
-
-                                _chartInstances.mini = new Chart(ctx, {
-                                    type: 'line',
-                                    data: {
-                                        labels: data.labels,
-                                        datasets: [{
-                                            data: data.values,
-                                            borderColor: '#3b82f6', 
-                                            backgroundColor: gradient,
-                                            borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
-                                        }]
-                                    },
-                                    options: { 
-                                        responsive: true, 
-                                        maintainAspectRatio: false, 
-                                        plugins: { legend: {display: false} }, 
-                                        scales: { x: {display:false}, y: {display:false} } 
-                                    }
-                                });
+                                _chartInstances.mini.update('none');
+                                return;
                             }
+                            
+                            let gradient = null;
+                            try {
+                                gradient = ctx.createLinearGradient(0, 0, 0, el.clientHeight || 100);
+                                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                                gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                            } catch(e) { gradient = 'rgba(59, 130, 246, 0.1)'; }
+                            const data = this.buildChartData();
+                            _chartInstances.mini = new Chart(ctx, {
+                                type: 'line',
+                                data: { labels: data.labels, datasets: [{ data: data.values, borderColor: '#3b82f6', backgroundColor: gradient, borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 }] },
+                                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display:false}, y: {display:false} } }
+                            });
                         });
                     },
                     renderCharts() {
                         this.$nextTick(() => {
                             const elMain = document.getElementById('mainChartEl');
                             if (!elMain || elMain.offsetParent === null) return;
-
                             const data = this.buildChartData();
                             
-                            // MAIN CHART
-                            if (_chartInstances.main) {
+                            const ctxMain = elMain.getContext('2d');
+                            if(_chartInstances.main) {
                                 _chartInstances.main.data.labels = data.labels;
                                 _chartInstances.main.data.datasets[0].data = data.values;
                                 _chartInstances.main.update('none');
                             } else {
-                                const ctxMain = elMain.getContext('2d');
                                 _chartInstances.main = new Chart(ctxMain, {
                                     type: 'line',
-                                    data: {
-                                        labels: data.labels,
-                                        datasets: [{
-                                            label: 'Bankroll ($)', data: data.values,
-                                            borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                            borderWidth: 2, fill: true, tension: 0.3,
-                                            pointRadius: 3, pointHoverRadius: 6
-                                        }]
-                                    },
-                                    options: { 
-                                        responsive: true, maintainAspectRatio: false, 
-                                        scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                        plugins: { legend: {labels: {color: '#e2e8f0'}} }
-                                    }
+                                    data: { labels: data.labels, datasets: [{ label: 'Bankroll ($)', data: data.values, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 }] },
+                                    options: { responsive: true, maintainAspectRatio: false, scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} }, plugins: { legend: {labels: {color: '#e2e8f0'}} } }
                                 });
                             }
 
-                            // VOLUME CHART
                             const elVol = document.getElementById('volumeChartEl');
                             if (elVol && elVol.offsetParent !== null) {
+                                const ctxVol = elVol.getContext('2d');
                                 const volData = this.buildVolumeData();
-                                if (_chartInstances.volume) {
+                                if(_chartInstances.volume) {
                                     _chartInstances.volume.data.labels = volData.labels;
                                     _chartInstances.volume.data.datasets[0].data = volData.values;
                                     _chartInstances.volume.update('none');
                                 } else {
-                                    const ctxVol = elVol.getContext('2d');
                                     _chartInstances.volume = new Chart(ctxVol, {
                                         type: 'bar',
-                                        data: {
-                                            labels: volData.labels,
-                                            datasets: [{
-                                                label: 'Torneios', data: volData.values,
-                                                backgroundColor: '#3b82f6', borderRadius: 4
-                                            }]
-                                        },
-                                        options: {
-                                            responsive: true, maintainAspectRatio: false,
-                                            scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                            plugins: { legend: {display: false} }
-                                        }
+                                        data: { labels: volData.labels, datasets: [{ label: 'Torneios', data: volData.values, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                                        options: { responsive: true, maintainAspectRatio: false, scales: { y: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, x: {grid: {display: false}, ticks: {color: '#94a3b8'}} }, plugins: { legend: {display: false} } }
                                     });
                                 }
                             }
 
-                            // LOCATION CHART
                             const elLoc = document.getElementById('locationChartEl');
                             if (elLoc && elLoc.offsetParent !== null) {
+                                const ctxLoc = elLoc.getContext('2d');
                                 const locData = this.buildLocationData();
-                                if (_chartInstances.location) {
+                                if(_chartInstances.location) {
                                     _chartInstances.location.data.labels = locData.labels;
                                     _chartInstances.location.data.datasets[0].data = locData.values;
                                     _chartInstances.location.data.datasets[0].backgroundColor = locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444');
                                     _chartInstances.location.update('none');
                                 } else {
-                                    const ctxLoc = elLoc.getContext('2d');
                                     _chartInstances.location = new Chart(ctxLoc, {
-                                        type: 'bar',
-                                        indexAxis: 'y',
-                                        data: {
-                                            labels: locData.labels,
-                                            datasets: [{
-                                                label: 'Profit ($)', data: locData.values,
-                                                backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'),
-                                                borderRadius: 4
-                                            }]
-                                        },
-                                        options: {
-                                            responsive: true, maintainAspectRatio: false,
-                                            scales: { x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, y: {grid: {display: false}, ticks: {color: '#94a3b8'}} },
-                                            plugins: { legend: {display: false} }
-                                        }
+                                        type: 'bar', indexAxis: 'y',
+                                        data: { labels: locData.labels, datasets: [{ label: 'Profit ($)', data: locData.values, backgroundColor: locData.values.map(v => v >= 0 ? '#10b981' : '#ef4444'), borderRadius: 4 }] },
+                                        options: { responsive: true, maintainAspectRatio: false, scales: { x: {grid: {color: '#334155'}, ticks: {color: '#94a3b8'}}, y: {grid: {display: false}, ticks: {color: '#94a3b8'}} }, plugins: { legend: {display: false} } }
                                     });
                                 }
                             }
                         });
                     },
-                    updateCharts() { 
-                        if(this.activeTab === 'charts') this.renderCharts();
-                        else if(this.activeTab === 'dashboard') this.renderMiniChart();
-                    },
+                    updateCharts() { if(this.activeTab === 'charts') this.renderCharts(); else if(this.activeTab === 'dashboard') this.renderMiniChart(); },
                     buildChartData() {
                         let b = this.settings.initialBankroll;
                         let values = [b], labels = ['Start'];
-                        [...this.sessions].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(s => {
-                            b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date));
-                        });
+                        [...this.sessions].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(s => { b += (s.profit || 0); values.push(b); labels.push(this.formatDate(s.date)); });
                         return { values, labels };
                     },
                     buildVolumeData() {
@@ -464,10 +488,7 @@
                     },
                     buildLocationData() {
                         const profits = {};
-                        this.sessions.filter(s => s.type === 'grind').forEach(s => {
-                            const loc = s.location || 'Outros';
-                            profits[loc] = (profits[loc] || 0) + (s.profit || 0);
-                        });
+                        this.sessions.filter(s => s.type === 'grind').forEach(s => { const loc = s.location || 'Outros'; profits[loc] = (profits[loc] || 0) + (s.profit || 0); });
                         return { labels: Object.keys(profits), values: Object.values(profits) };
                     }
                 }
@@ -507,65 +528,164 @@
                 </div>
                 <button @click="showLevels = false" class="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+            <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar bg-dark-950/30">
                 <template x-for="lvl in levels" :key="lvl.id">
-                    <div class="relative overflow-hidden rounded-2xl border border-white/5 transition-all duration-300 hover:border-white/10 group"
+                    <div class="relative overflow-hidden rounded-2xl border transition-all duration-300 group"
                          :class="{
-                            'ring-2 ring-primary-500/50 shadow-lg shadow-primary-500/10': isCurrentLevel(lvl),
-                            'opacity-60 grayscale': isLocked(lvl),
-                            [lvl.border.replace('border-left', 'bg')]: false
+                            'ring-2 ring-primary-500/50 shadow-lg shadow-primary-500/10 border-primary-500/30 bg-dark-900': isCurrentLevel(lvl),
+                            'opacity-60 grayscale border-white/5 bg-dark-900/20': isLocked(lvl),
+                            'border-white/10 bg-dark-900/40': !isLocked(lvl) && !isCurrentLevel(lvl)
                          }">
-                         
-                        <!-- Fundo Gradiente Sutil -->
-                        <div class="absolute inset-0 opacity-10 pointer-events-none transition-opacity group-hover:opacity-20" 
-                             :class="lvl.border.replace('border-l-4', '').replace('border-', 'bg-')"></div>
+                         <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="isCurrentLevel(lvl) ? 'bg-primary-500' : (isLocked(lvl) ? 'bg-slate-700' : 'bg-emerald-500')"></div>
 
-                        <div class="relative p-5 grid md:grid-cols-[1fr_2fr] gap-6">
-                            <!-- Header Info -->
-                            <div class="flex items-start gap-4">
-                                <div class="w-14 h-14 rounded-2xl bg-dark-950/50 border border-white/10 flex items-center justify-center shrink-0 text-2xl shadow-inner" :class="lvl.color">
+                        <div class="relative p-5 pl-8 grid md:grid-cols-[1fr_2fr] gap-6 items-center">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl shadow-inner border border-white/5" 
+                                     :class="isLocked(lvl) ? 'bg-slate-800 text-slate-500' : lvl.bg + ' ' + lvl.color.replace('text-', 'text-white ')">
                                     <i :class="['fa-solid', lvl.icon]"></i>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
                                         <h3 class="text-lg font-bold text-white" x-text="lvl.name"></h3>
                                         <span x-show="isCurrentLevel(lvl)" class="bg-primary-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Atual</span>
+                                        <span x-show="!isLocked(lvl) && !isCurrentLevel(lvl)" class="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-emerald-500/30"><i class="fa-solid fa-check mr-1"></i> Concluído</span>
                                     </div>
-                                    <p class="text-xs font-mono text-slate-400 bg-black/20 inline-block px-2 py-1 rounded">
+                                    <p class="text-xs font-mono text-slate-400 bg-black/20 inline-block px-2 py-1 rounded border border-white/5">
                                         <span x-text="lvl.min < 0 ? '0' : formatMoney(lvl.min)"></span> 
-                                        <i class="fa-solid fa-arrow-right mx-1 text-[10px]"></i> 
+                                        <i class="fa-solid fa-arrow-right mx-1 text-[10px] opacity-50"></i> 
                                         <span x-text="lvl.max > 99999 ? '∞' : formatMoney(lvl.max)"></span>
                                     </p>
                                 </div>
                             </div>
-
-                            <!-- Grid de Detalhes -->
                             <div class="grid grid-cols-3 gap-3 text-xs">
-                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5">
+                                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
                                     <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Buy-ins</p>
                                     <div class="space-y-1 font-mono">
                                         <div class="flex justify-between"><span class="text-slate-400">Sup</span> <span x-text="lvl.abiSupport"></span></div>
-                                        <div class="flex justify-between text-white font-bold"><span class="text-primary-500">Core</span> <span x-text="lvl.abiCore"></span></div>
+                                        <div class="flex justify-between font-bold" :class="isCurrentLevel(lvl) ? 'text-primary-400' : 'text-white'"><span class="text-slate-400 font-normal">Core</span> <span x-text="lvl.abiCore"></span></div>
                                         <div class="flex justify-between"><span class="text-slate-400">Shot</span> <span class="text-white font-mono font-bold" x-text="lvl.abiShot"></span></div>
                                     </div>
                                 </div>
-                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
-                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Mix de Volume</p>
-                                    <div class="flex-grow flex items-center justify-center text-center">
-                                        <p class="text-slate-300 leading-snug" x-text="lvl.dist"></p>
+                                <div class="bg-white/5 p-3 rounded-xl border border-white/5 flex flex-col justify-between">
+                                    <p class="text-slate-500 font-bold uppercase mb-1 text-[10px] tracking-wider">Mix</p>
+                                    <div class="text-center">
+                                        <div class="flex h-1.5 w-full rounded-full overflow-hidden mb-2 bg-slate-800">
+                                            <div class="bg-slate-400 h-full" :style="'width:' + lvl.pSupport"></div>
+                                            <div class="bg-primary-500 h-full" :style="'width:' + lvl.pCore"></div>
+                                            <div class="bg-red-500 h-full" :style="'width:' + lvl.pShot"></div>
+                                        </div>
+                                        <p class="text-[9px] text-slate-400">Core: <span class="text-white font-bold" x-text="lvl.pCore"></span></p>
                                     </div>
                                 </div>
-                                <div class="bg-dark-950/30 p-3 rounded-xl border border-white/5 flex flex-col">
-                                    <p class="text-slate-500 font-bold uppercase mb-2 text-[10px] tracking-wider">Foco do Nível</p>
-                                    <div class="flex-grow flex items-center">
-                                        <p class="text-slate-300 italic leading-snug" x-text="lvl.rules"></p>
-                                    </div>
+                                <div class="bg-white/5 p-3 rounded-xl border border-white/5 flex flex-col justify-between">
+                                    <p class="text-slate-500 font-bold uppercase mb-1 text-[10px] tracking-wider">Foco</p>
+                                    <p class="text-slate-300 italic leading-tight text-[11px]" x-text="lvl.rules"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </template>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE FORMULÁRIO (ADD/EDIT) -->
+    <div x-show="showFormModal" class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center backdrop-blur-md p-4 transition-opacity" x-transition x-cloak>
+        <div @click.outside="showFormModal = false" class="glass-card w-full max-w-lg rounded-2xl flex flex-col overflow-hidden animate-slide-up bg-dark-900">
+            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid" :class="isEditing ? 'fa-pen-to-square' : 'fa-plus-circle'"></i>
+                    <span x-text="isEditing ? 'Editar Registro' : 'Nova Sessão'"></span>
+                </h2>
+                <button @click="showFormModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <form @submit.prevent="saveSession" class="p-6 space-y-5 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                <!-- Type Selector -->
+                <div class="flex gap-2 p-1 bg-dark-950 rounded-lg">
+                    <template x-for="type in [{id:'grind', l:'Grind'}, {id:'deposit', l:'Depósito'}, {id:'withdraw', l:'Saque'}]">
+                        <button type="button" @click="form.type = type.id" 
+                            class="flex-1 py-2 rounded-md text-xs font-bold transition-all"
+                            :class="form.type === type.id ? 'bg-primary-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'">
+                            <span x-text="type.l"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- Fields -->
+                <div x-show="form.type === 'grind'" class="space-y-4 animate-fade-in">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Data</label>
+                            <input type="date" x-model="form.date" required class="w-full p-3 rounded-xl glass-input text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Local</label>
+                            <select x-model="form.location" class="w-full p-3 rounded-xl glass-input text-sm appearance-none">
+                                <template x-for="loc in settings.locations"><option :value="loc" x-text="loc"></option></template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Hora Início</label>
+                            <input type="time" x-model="form.startTime" class="w-full p-3 rounded-xl glass-input text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Hora Fim</label>
+                            <input type="time" x-model="form.endTime" class="w-full p-3 rounded-xl glass-input text-sm">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Tipo de Jogo</label>
+                            <select x-model="form.context" class="w-full p-3 rounded-xl glass-input text-sm appearance-none">
+                                <template x-for="gt in settings.gameTypes"><option :value="gt" x-text="gt"></option></template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Qtd Jogos</label>
+                            <input type="number" x-model.number="form.volume" placeholder="0" class="w-full p-3 rounded-xl glass-input text-sm">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-red-400 mb-1 block" x-text="'Investido ('+currencySymbol+')'"></label>
+                            <input type="number" step="0.01" x-model.number="form.invested" class="w-full p-2 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-red-500 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-emerald-400 mb-1 block" x-text="'Retorno ('+currencySymbol+')'"></label>
+                            <input type="number" step="0.01" x-model.number="form.return" class="w-full p-2 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-emerald-500 outline-none text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="form.type !== 'grind'" class="animate-fade-in space-y-4">
+                     <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Data</label>
+                        <input type="date" x-model="form.date" required class="w-full p-3 rounded-xl glass-input text-sm">
+                    </div>
+                    <div class="p-6 rounded-xl bg-white/5 border border-white/5 text-center">
+                        <label class="text-xs font-bold text-slate-400 mb-2 block" x-text="'Valor ('+currencySymbol+')'"></label>
+                        <input type="number" step="0.01" x-model.number="form.amount" class="w-full bg-transparent text-center text-3xl font-mono text-white border-b border-white/20 focus:border-primary-500 outline-none pb-2" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Notas</label>
+                    <textarea x-model="form.notes" class="w-full p-3 rounded-xl glass-input text-sm h-24 resize-none" placeholder="Detalhes..."></textarea>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-4 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold shadow-lg shadow-primary-600/20 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-save"></i>
+                        <span x-text="isEditing ? 'Salvar Alterações' : 'Adicionar Registro'"></span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -586,12 +706,12 @@
 
                 <!-- Nav Desktop -->
                 <nav class="hidden md:flex bg-white/5 p-1 rounded-full border border-white/5">
-                    <template x-for="t in ['dashboard', 'charts', 'settings']">
-                        <button @click="activeTab = t" 
+                    <template x-for="t in ['dashboard', 'records', 'charts', 'settings']">
+                        <button @click="activeTab = t; if(t==='charts') renderCharts(); if(t==='dashboard') renderMiniChart();" 
                                 class="px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2"
                                 :class="activeTab === t ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'">
-                            <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid"></i>
-                            <span class="capitalize" x-text="t"></span>
+                            <i :class="{'dashboard': 'fa-chart-pie', 'records': 'fa-list-ul', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid"></i>
+                            <span class="capitalize" x-text="t === 'records' ? 'Registros' : t"></span>
                         </button>
                     </template>
                 </nav>
@@ -625,12 +745,12 @@
         <!-- Mobile Nav -->
         <div class="md:hidden border-t border-white/5 bg-dark-900/50 backdrop-blur-lg">
             <div class="flex justify-around p-2">
-                <template x-for="t in ['dashboard', 'charts', 'settings']">
-                    <button @click="activeTab = t" 
+                <template x-for="t in ['dashboard', 'records', 'charts', 'settings']">
+                    <button @click="activeTab = t; if(t==='charts') renderCharts(); if(t==='dashboard') renderMiniChart();" 
                             class="flex-1 py-3 flex flex-col items-center gap-1 text-xs font-medium transition-colors"
                             :class="activeTab === t ? 'text-primary-500' : 'text-slate-500'">
-                        <i :class="{'dashboard': 'fa-chart-pie', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid text-lg"></i>
-                        <span class="capitalize" x-text="t"></span>
+                        <i :class="{'dashboard': 'fa-chart-pie', 'records': 'fa-list-ul', 'charts': 'fa-chart-line', 'settings': 'fa-gear'}[t]" class="fa-solid text-lg"></i>
+                        <span class="capitalize" x-text="t === 'records' ? 'Registros' : t"></span>
                     </button>
                 </template>
             </div>
@@ -647,333 +767,443 @@
                 <!-- Dynamic Background -->
                 <div class="absolute inset-0 opacity-20 transition-all duration-1000" :class="currentLevelObj.border.replace('border-l-4', '').replace('border-', 'bg-')"></div>
                 
-                <div class="relative bg-dark-950/80 rounded-[20px] p-6 md:p-10 grid lg:grid-cols-[1.5fr_1fr] gap-8 md:gap-12 items-center backdrop-blur-xl">
+                <div class="relative bg-dark-950/80 rounded-[20px] p-6 md:p-10 grid lg:grid-cols-[1fr_1.2fr] gap-8 md:gap-12 items-center backdrop-blur-xl">
                     
                     <!-- Left Side: Bankroll -->
-                    <div>
-                        <!-- Bankroll -->
-                        <div class="mb-6 mt-4">
-                            <div class="flex items-baseline gap-2">
-                                <h2 class="text-5xl md:text-7xl font-mono font-bold text-white tracking-tighter drop-shadow-2xl" x-text="formatMoney(bankroll)"></h2>
-                                <span class="text-2xl text-slate-600 font-bold">USD</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-emerald-500/80 font-mono text-lg font-medium">
-                                <i class="fa-solid fa-arrow-right-arrow-left text-xs opacity-50"></i>
-                                <span x-text="formatBRL(bankroll)"></span>
-                                <span class="text-xs text-slate-500 bg-black/20 px-1.5 py-0.5 rounded ml-2" x-text="'Cotação: R$ ' + currencyRate.toFixed(2)"></span>
-                            </div>
+                    <div class="flex flex-col justify-center border-r border-white/5 pr-8">
+                        <h2 class="text-sm text-slate-400 font-bold uppercase tracking-widest mb-1">Bankroll Total</h2>
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-5xl md:text-7xl font-mono font-bold text-white tracking-tighter drop-shadow-2xl" x-text="formatMoney(bankroll)"></span>
+                            <span class="text-2xl text-slate-600 font-bold">USD</span>
                         </div>
-
-                        <!-- Progress Section with Integrated Status -->
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-end">
-                                <!-- Level Name moved here -->
-                                <span class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                                    <i :class="['fa-solid', currentLevelObj.icon]" class="text-slate-400"></i>
-                                    <span x-text="currentLevelObj.name"></span>
-                                </span>
-                                <span class="text-xs font-mono text-slate-400" x-text="Math.round(levelProgress) + '%'"></span>
-                            </div>
-
-                            <div class="w-full bg-dark-900 h-3 rounded-full overflow-hidden border border-white/5 relative shadow-inner">
-                                <div class="h-full transition-all duration-1000 relative overflow-hidden" 
-                                     :class="currentLevelObj.color.replace('text-', 'bg-')" 
-                                     :style="'width: ' + levelProgress + '%'">
-                                     <div class="absolute inset-0 bg-white/20 animate-[pulse_2s_infinite]"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex justify-between text-[10px] font-mono text-slate-500">
-                                 <span>Atual: <span class="text-slate-400" x-text="formatMoney(currentLevelObj.min)"></span></span>
-                                 <span>Meta: <span class="text-slate-300 font-bold" x-text="nextLevelTarget"></span></span>
-                            </div>
+                        <div class="flex items-center gap-2 text-emerald-400/90 font-mono text-lg font-medium bg-emerald-400/10 px-3 py-1 rounded-lg w-fit">
+                            <i class="fa-solid fa-arrow-right-arrow-left text-sm opacity-70"></i>
+                            <span x-text="formatBRL(bankroll)"></span>
                         </div>
+                        <p class="text-xs text-slate-500 mt-2 ml-1" x-text="'Cotação: 1 USD = ' + currencyRate.toFixed(2) + ' BRL'"></p>
                     </div>
 
-                    <!-- Right Side: Strategy Grid -->
-                    <div class="bg-white/5 rounded-2xl p-6 border border-white/5 shadow-inner">
-                        <div class="grid grid-cols-3 gap-3 mb-5">
-                            <!-- Support -->
-                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
-                                <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Suporte</p>
-                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiSupport"></p>
-                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
-                                    <div class="h-full bg-slate-400" :style="'width: ' + currentLevelObj.pSupport"></div>
-                                </div>
-                                <p class="text-[9px] text-slate-400 mt-1" x-text="currentLevelObj.pSupport"></p>
-                            </div>
-                            
-                            <!-- Core (Modified) -->
-                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
-                                <p class="text-[10px] uppercase font-bold text-primary-400 mb-1">Core</p>
-                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiCore"></p>
-                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
-                                    <div class="h-full bg-primary-500" :style="'width: ' + currentLevelObj.pCore"></div>
-                                </div>
-                                <p class="text-[9px] text-primary-400 mt-1" x-text="currentLevelObj.pCore"></p>
-                            </div>
+                    <!-- Right Side: Level Info (Updated) -->
+                    <div @click="showLevels = true" class="relative group cursor-pointer">
+                         <div class="absolute inset-0 bg-white/5 rounded-2xl transition-all group-hover:bg-white/10 blur-sm"></div>
+                         <div class="relative bg-dark-900/60 rounded-2xl p-5 border border-white/5 group-hover:border-primary-500/30 transition-all">
+                              
+                              <!-- Header: Level Name & Streak -->
+                              <div class="flex items-center justify-between mb-4">
+                                  <div class="flex items-center gap-3">
+                                      <div class="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-400 shadow-inner">
+                                          <i :class="['fa-solid', currentLevelObj.icon]"></i>
+                                      </div>
+                                      <div>
+                                          <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Nível Atual</p>
+                                          <p class="text-lg font-bold text-white leading-none" x-text="currentLevelObj.name"></p>
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-500 group-hover:text-white group-hover:bg-primary-500 transition-all">
+                                      <i class="fa-solid fa-chevron-right text-xs"></i>
+                                  </div>
+                              </div>
 
-                            <!-- Shot -->
-                            <div class="text-center p-3 rounded-xl bg-dark-950/50 border border-white/5 transition-transform hover:-translate-y-1">
-                                <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Shot</p>
-                                <p class="text-sm font-mono text-white font-bold" x-text="currentLevelObj.abiShot"></p>
-                                <div class="w-full h-1 bg-slate-800 rounded-full mt-2 overflow-hidden">
-                                    <div class="h-full bg-red-500" :style="'width: ' + currentLevelObj.pShot"></div>
-                                </div>
-                                <p class="text-[9px] text-slate-400 mt-1" x-text="currentLevelObj.pShot"></p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-start gap-3 bg-dark-950/30 p-3 rounded-xl border border-white/5">
-                            <i class="fa-solid fa-lightbulb text-yellow-500 mt-0.5"></i>
-                            <div>
-                                <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Foco do Nível</p>
-                                <p class="text-xs text-slate-300 italic" x-text="'&quot;' + currentLevelObj.rules + '&quot;'"></p>
-                            </div>
-                        </div>
+                              <!-- Progress Bar (With amount to go) -->
+                              <div class="mb-5">
+                                  <div class="flex justify-between text-xs mb-1 font-mono">
+                                      <span class="text-slate-500" x-text="formatMoney(currentLevelObj.min)"></span>
+                                      <span class="text-primary-400 font-bold" x-text="'Faltam ' + nextLevelGap"></span>
+                                      <span class="text-slate-400 font-bold" x-text="nextLevelTarget"></span>
+                                  </div>
+                                  <div class="w-full bg-dark-950 h-2 rounded-full overflow-hidden border border-white/5 shadow-inner">
+                                      <div class="h-full bg-primary-500 transition-all duration-1000 relative" :style="'width: ' + levelProgress + '%'">
+                                          <div class="absolute inset-0 bg-white/30 animate-pulse"></div>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <!-- ABI Grid (Redesigned) -->
+                              <div class="grid grid-cols-3 gap-2 mb-4">
+                                  <!-- Support -->
+                                  <div class="bg-dark-950/40 p-2 rounded-lg border border-white/5 text-center">
+                                      <p class="text-[9px] uppercase text-slate-500 font-bold">Suporte</p>
+                                      <p class="text-xs font-mono text-slate-300" x-text="currentLevelObj.abiSupport"></p>
+                                      <p class="text-[10px] text-slate-500 mt-1" x-text="currentLevelObj.pSupport + ' Vol'"></p>
+                                  </div>
+                                  <!-- Core (Highlighted) -->
+                                  <div class="bg-primary-900/10 p-2 rounded-lg border border-primary-500/20 text-center relative overflow-hidden">
+                                      <div class="absolute inset-0 bg-primary-500/5"></div>
+                                      <p class="text-[9px] uppercase text-primary-400 font-bold relative z-10">Core</p>
+                                      <p class="text-sm font-mono text-white font-bold relative z-10" x-text="currentLevelObj.abiCore"></p>
+                                      <p class="text-[10px] text-primary-400/70 mt-1 relative z-10" x-text="currentLevelObj.pCore + ' Vol'"></p>
+                                  </div>
+                                  <!-- Shot -->
+                                   <div class="bg-dark-950/40 p-2 rounded-lg border border-white/5 text-center">
+                                      <p class="text-[9px] uppercase text-slate-500 font-bold">Shot</p>
+                                      <p class="text-xs font-mono text-white" x-text="currentLevelObj.abiShot"></p>
+                                      <p class="text-[10px] text-slate-500 mt-1" x-text="currentLevelObj.pShot + ' Vol'"></p>
+                                  </div>
+                              </div>
+
+                              <!-- Focus -->
+                              <div class="bg-dark-950/30 p-2 rounded-lg border border-white/5 flex items-center justify-center text-center">
+                                   <p class="text-[11px] text-slate-300 italic leading-snug" x-text="'&quot;' + currentLevelObj.rules + '&quot;'"></p>
+                              </div>
+                         </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Stats Strip (New & Improved) -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <!-- Card 1: Lucro -->
+                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:bg-white/5 transition-colors">
+                    <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <i class="fa-solid fa-sack-dollar text-5xl text-emerald-500"></i>
+                    </div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Lucro Total</p>
+                    <p class="text-2xl font-mono font-bold tracking-tight" :class="totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(totalProfit)"></p>
+                    <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-mono" x-text="formatMoney(profitPerGame) + '/jogo'"></span>
+                    </div>
+                </div>
+
+                <!-- Card 2: ROI -->
+                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:bg-white/5 transition-colors">
+                     <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <i class="fa-solid fa-chart-line text-5xl text-primary-500"></i>
+                    </div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Rentabilidade</p>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-2xl font-mono font-bold text-white" x-text="roi + '%'"></p>
+                        <span class="text-xs text-primary-400 font-bold">ROI</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">ABI Real: <span class="text-slate-300 font-mono" x-text="formatMoney(abi)"></span></p>
+                </div>
+
+                <!-- Card 3: Volume -->
+                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:bg-white/5 transition-colors">
+                    <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <i class="fa-solid fa-layer-group text-5xl text-orange-500"></i>
+                    </div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Volume</p>
+                    <p class="text-2xl font-mono font-bold text-white" x-text="totalVolume"></p>
+                     <div class="mt-2 flex items-center gap-2 text-xs">
+                        <span class="text-orange-400 font-bold"><i class="fa-solid fa-fire mr-1"></i> <span x-text="streak"></span> dias seguidos</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Chart -->
+                <div class="glass-card p-0 rounded-2xl relative overflow-hidden group cursor-pointer hover:border-primary-500/30 transition-colors" @click="activeTab = 'charts'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent opacity-50 z-10"></div>
+                    <div class="absolute top-4 left-5 z-20">
+                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tendência</p>
+                    </div>
+                    <div class="w-full h-full pt-4">
+                        <canvas id="miniChartEl"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Content Grid -->
-            <div class="grid lg:grid-cols-3 gap-8">
-                
-                <!-- Left Column: Quick Stats -->
-                <div class="space-y-6">
-                    <!-- Gamification Card -->
-                    <div class="glass-card rounded-2xl p-6 cursor-pointer hover:bg-white/5 transition-colors group" @click="showLevels = true">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Status Atual</h3>
-                            <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-white transition-colors"></i>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-dark-950 font-bold shadow-lg shadow-orange-500/20">
-                                <i class="fa-solid fa-trophy"></i>
-                            </div>
-                            <div>
-                                <p class="text-2xl font-bold text-white" x-text="currentLevelObj.name"></p>
-                                <div class="flex items-center gap-2 text-xs text-slate-400">
-                                    <i class="fa-solid fa-fire text-orange-500"></i>
-                                    <span x-text="streak + ' dias seguidos'"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- KPI Grid -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
-                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-chart-simple mr-1"></i> Lucro</div>
-                            <div class="text-xl font-mono font-bold" :class="totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(totalProfit)"></div>
-                        </div>
-                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
-                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-percent mr-1"></i> ROI</div>
-                            <div class="text-xl font-mono font-bold text-white" x-text="roi + '%'"></div>
-                        </div>
-                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28">
-                            <div class="text-slate-400 text-xs font-bold uppercase"><i class="fa-solid fa-layer-group mr-1"></i> Volume</div>
-                            <div class="text-xl font-mono font-bold text-white" x-text="totalVolume"></div>
-                        </div>
-                        <div class="glass-card p-4 rounded-2xl flex flex-col justify-between h-28 relative overflow-hidden group cursor-pointer" @click="activeTab = 'charts'">
-                            <div class="text-slate-400 text-xs font-bold uppercase z-10 relative">Gráfico</div>
-                            <div class="absolute inset-0 opacity-30 group-hover:opacity-50 transition-opacity">
-                                <canvas id="miniChartEl"></canvas>
-                            </div>
-                        </div>
-                    </div>
+            <!-- NOVA SEÇÃO: Acesso Rápido e Histórico Recente -->
+            <div class="glass-card rounded-2xl p-6 animate-fade-in">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Últimas Atividades
+                    </h3>
+                    <button @click="openForm()" class="w-full sm:w-auto bg-primary-600 hover:bg-primary-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20 transition-all hover:scale-105 active:scale-95">
+                        <i class="fa-solid fa-plus"></i> Novo Registro
+                    </button>
                 </div>
 
-                <!-- Center & Right: Action Area -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Input Form -->
-                    <div class="glass-card rounded-2xl p-1">
-                        <div class="bg-dark-900/80 p-6 rounded-xl">
-                            <div class="flex justify-between items-center mb-6">
-                                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                    <span class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-500"><i class="fa-solid fa-pen"></i></span>
-                                    Novo Registro
-                                </h3>
-                                
-                                <div class="bg-dark-950 p-1 rounded-lg border border-white/5 flex">
-                                    <button @click="inputCurrency = 'USD'" class="px-3 py-1 rounded-md text-xs font-bold transition-all" :class="inputCurrency === 'USD' ? 'bg-white/10 text-white shadow' : 'text-slate-500'">USD</button>
-                                    <button @click="inputCurrency = 'BRL'" class="px-3 py-1 rounded-md text-xs font-bold transition-all" :class="inputCurrency === 'BRL' ? 'bg-white/10 text-white shadow' : 'text-slate-500'">BRL</button>
-                                </div>
-                            </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="text-[10px] uppercase text-slate-500 font-semibold border-b border-white/5">
+                            <tr>
+                                <th class="py-3 px-2">Data</th>
+                                <th class="py-3 px-2">Tipo</th>
+                                <th class="py-3 px-2">Local / Jogo</th>
+                                <th class="py-3 px-2 text-right">Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm text-slate-300">
+                            <template x-for="s in sessions.slice().sort((a,b) => new Date(b.date + 'T' + (b.startTime || '00:00')) - new Date(a.date + 'T' + (a.startTime || '00:00'))).slice(0, 5)" :key="s.id">
+                                <tr class="hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 group cursor-pointer" @click="activeTab = 'records'">
+                                    <td class="py-3 px-2 font-mono text-xs text-slate-400" x-text="formatDate(s.date)"></td>
+                                    <td class="py-3 px-2 capitalize">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1.5 h-1.5 rounded-full" :class="{'grind':'bg-blue-500','deposit':'bg-emerald-500','withdraw':'bg-red-500'}[s.type]"></div>
+                                            <span x-text="s.type"></span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-2">
+                                        <span x-text="s.location || '-'"></span>
+                                        <span x-show="s.context" class="text-xs text-slate-500 ml-1" x-text="'• ' + s.context"></span>
+                                    </td>
+                                    <td class="py-3 px-2 text-right font-mono font-bold" :class="s.profit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(s.profit)"></td>
+                                </tr>
+                            </template>
+                            <tr x-show="sessions.length === 0">
+                                <td colspan="4" class="py-8 text-center text-slate-500 italic">
+                                    Nenhuma atividade recente.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 pt-2 border-t border-white/5 text-center" x-show="sessions.length > 0">
+                    <button @click="activeTab = 'records'" class="text-xs font-medium text-slate-500 hover:text-primary-400 transition-colors flex items-center justify-center gap-1 mx-auto">
+                        Ver histórico completo <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
 
-                            <form @submit.prevent="addSession" class="space-y-6">
-                                <!-- Type Selector -->
-                                <div class="flex gap-4 border-b border-white/5 pb-6">
-                                    <template x-for="type in [{id:'grind', l:'Grind', i:'fa-gamepad', c:'text-blue-400'}, {id:'deposit', l:'Depósito', i:'fa-arrow-up', c:'text-emerald-400'}, {id:'withdraw', l:'Saque', i:'fa-arrow-down', c:'text-red-400'}]">
-                                        <label class="cursor-pointer group">
-                                            <input type="radio" :value="type.id" x-model="form.type" class="hidden">
-                                            <div class="flex items-center gap-2 px-4 py-2 rounded-full border transition-all"
-                                                 :class="form.type === type.id ? 'bg-white/10 border-white/20 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'">
-                                                <i :class="['fa-solid', type.i, form.type === type.id ? type.c : '']"></i>
-                                                <span class="text-sm font-medium" x-text="type.l"></span>
+        </div>
+
+        <!-- VIEW: REGISTROS (NOVA ABA) -->
+        <div x-show="activeTab === 'records'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-cloak>
+            <div class="glass-card rounded-2xl overflow-hidden min-h-[600px] flex flex-col">
+                <div class="p-6 border-b border-white/5 bg-dark-900/50 flex justify-between items-center sticky top-0 z-10">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center text-primary-500"><i class="fa-solid fa-list-ul"></i></span>
+                        Histórico de Sessões
+                    </h2>
+                    
+                    <!-- Filtros e Botão Novo -->
+                     <div class="flex gap-2 items-center">
+                         <select x-model="filters.month" class="p-2 rounded-lg glass-input text-xs">
+                             <option value="all">Todos os Meses</option>
+                             <template x-for="m in uniqueMonths"><option :value="m" x-text="m"></option></template>
+                         </select>
+                         <select x-model="filters.type" class="p-2 rounded-lg glass-input text-xs">
+                             <option value="all">Todos os Tipos</option>
+                             <option value="grind">Grind</option>
+                             <option value="deposit">Depósito</option>
+                             <option value="withdraw">Saque</option>
+                         </select>
+                         <button @click="exportCSV()" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg" title="Exportar CSV"><i class="fa-solid fa-file-csv"></i></button>
+                         <button @click="openForm()" class="bg-primary-600 hover:bg-primary-500 text-white p-2 rounded-lg font-bold shadow-lg shadow-primary-600/20 transition-all flex items-center gap-1 text-xs">
+                            <i class="fa-solid fa-plus"></i> Novo
+                        </button>
+                     </div>
+                </div>
+
+                <div class="flex-grow overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="text-xs uppercase text-slate-500 font-semibold bg-dark-950/50 sticky top-0">
+                            <tr>
+                                <th class="p-4 w-32">Data</th>
+                                <th class="p-4 w-24">Hora</th>
+                                <th class="p-4">Evento / Tipo</th>
+                                <th class="p-4">Local</th>
+                                <th class="p-4 text-right">Investido</th>
+                                <th class="p-4 text-right">Retorno</th>
+                                <th class="p-4 text-right">Profit</th>
+                                <th class="p-4 w-24 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-sm">
+                            <template x-for="s in filteredSessions" :key="s.id">
+                                <tr class="hover:bg-white/5 transition-colors group">
+                                    <td class="p-4 text-slate-300 font-mono" x-text="formatDate(s.date)"></td>
+                                    <td class="p-4 text-slate-500 text-xs font-mono" x-text="s.startTime ? s.startTime + ' - ' + s.endTime : '-'"></td>
+                                    <td class="p-4">
+                                        <div class="flex flex-col">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-2 h-2 rounded-full" :class="{'grind':'bg-blue-500','deposit':'bg-emerald-500','withdraw':'bg-red-500'}[s.type]"></div>
+                                                <span class="text-white font-medium capitalize" x-text="s.type"></span>
                                             </div>
-                                        </label>
-                                    </template>
-                                </div>
-
-                                <!-- Grind Fields -->
-                                <div x-show="form.type === 'grind'" class="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
-                                    <div class="space-y-1">
-                                        <label class="text-xs font-bold text-slate-500 ml-1">Data</label>
-                                        <input type="date" x-model="form.date" required class="w-full p-3 rounded-xl glass-input">
-                                    </div>
-                                    <div class="space-y-1">
-                                        <label class="text-xs font-bold text-slate-500 ml-1">Local</label>
-                                        <input type="text" list="locationsList" x-model="form.location" class="w-full p-3 rounded-xl glass-input" placeholder="Ex: GGPoker">
-                                        <datalist id="locationsList"><template x-for="loc in settings.locations"><option :value="loc"></option></template></datalist>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <label class="text-xs font-bold text-slate-500 ml-1">Jogo</label>
-                                        <select x-model="form.context" class="w-full p-3 rounded-xl glass-input appearance-none">
-                                            <option value="Online">Online MTT</option><option value="Live">Live MTT</option><option value="Cash">Cash Game</option>
-                                        </select>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <label class="text-xs font-bold text-slate-500 ml-1">Qtd Torneios</label>
-                                        <input type="number" x-model.number="form.volume" class="w-full p-3 rounded-xl glass-input" placeholder="0">
-                                    </div>
-                                    
-                                    <div class="md:col-span-2 grid grid-cols-2 gap-4 bg-dark-950/30 p-4 rounded-xl border border-white/5">
-                                        <div class="space-y-1">
-                                            <label class="text-xs font-bold text-red-400 ml-1" x-text="'Investido (' + currencySymbol + ')'"></label>
-                                            <input type="number" step="0.01" x-model.number="form.invested" class="w-full p-3 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all placeholder-white/20">
+                                            <span class="text-xs text-slate-500 ml-4" x-text="s.context || ''"></span>
+                                            <span x-show="s.notes" class="text-[10px] text-slate-600 ml-4 italic truncate max-w-[150px]" x-text="s.notes"></span>
                                         </div>
-                                        <div class="space-y-1">
-                                            <label class="text-xs font-bold text-emerald-400 ml-1" x-text="'Retorno (' + currencySymbol + ')'"></label>
-                                            <input type="number" step="0.01" x-model.number="form.return" class="w-full p-3 rounded-lg bg-dark-900 border border-white/10 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder-white/20">
+                                    </td>
+                                    <td class="p-4 text-slate-400" x-text="s.location || '-'"></td>
+                                    <td class="p-4 text-right text-slate-400" x-text="s.invested > 0 ? formatMoney(s.invested) : '-'"></td>
+                                    <td class="p-4 text-right text-slate-400" x-text="s.return > 0 ? formatMoney(s.return) : '-'"></td>
+                                    <td class="p-4 text-right font-mono font-bold" :class="s.profit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(s.profit)"></td>
+                                    <td class="p-4 text-center">
+                                        <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button @click="openForm(s)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-500 hover:text-white text-slate-400 transition-colors" title="Editar">
+                                                <i class="fa-solid fa-pen text-xs"></i>
+                                            </button>
+                                            <button @click="deleteSession(s.id)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-red-500 hover:text-white text-slate-400 transition-colors" title="Excluir">
+                                                <i class="fa-solid fa-trash text-xs"></i>
+                                            </button>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <!-- Transaction Fields -->
-                                <div x-show="form.type !== 'grind'" class="animate-fade-in bg-dark-950/30 p-6 rounded-xl border border-white/5 text-center">
-                                    <label class="block text-sm font-bold text-slate-400 mb-2" x-text="'Valor da Transação (' + currencySymbol + ')'"></label>
-                                    <input type="number" step="0.01" x-model.number="form.amount" class="w-full max-w-[200px] mx-auto p-4 rounded-xl bg-transparent border-b-2 border-white/20 text-center text-3xl font-mono text-white focus:border-primary-500 outline-none placeholder-white/10" placeholder="0.00">
-                                </div>
-
-                                <button type="submit" class="w-full bg-gradient-to-r from-primary-600 to-blue-700 hover:from-primary-500 hover:to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-3 transition-all transform active:scale-[0.98]">
-                                    <i class="fa-solid fa-check"></i> <span x-text="form.type === 'grind' ? 'Registrar Sessão' : 'Confirmar Transação'"></span>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- History Table -->
-                    <div class="glass-card rounded-2xl overflow-hidden">
-                        <div class="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
-                            <h3 class="text-sm font-bold text-slate-300">Últimas Atividades</h3>
-                            <button class="text-xs text-slate-500 hover:text-white transition-colors">Ver tudo</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="text-xs uppercase text-slate-500 font-semibold bg-dark-950/30">
-                                    <tr><th class="p-4">Data</th><th class="p-4">Evento</th><th class="p-4">Local</th><th class="p-4 text-right">Resultado</th><th class="p-4 text-center"></th></tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5 text-sm">
-                                    <template x-for="s in sessions.slice().reverse().slice(0, 8)" :key="s.id">
-                                        <tr class="hover:bg-white/5 transition-colors group">
-                                            <td class="p-4 text-slate-400 font-mono text-xs" x-text="formatDate(s.date)"></td>
-                                            <td class="p-4">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-6 h-6 rounded flex items-center justify-center text-xs" 
-                                                         :class="{'grind':'bg-blue-500/10 text-blue-400', 'deposit':'bg-emerald-500/10 text-emerald-400', 'withdraw':'bg-red-500/10 text-red-400'}[s.type]">
-                                                        <i :class="{'grind':'fa-solid fa-gamepad', 'deposit':'fa-solid fa-arrow-up', 'withdraw':'fa-solid fa-arrow-down'}[s.type]"></i>
-                                                    </div>
-                                                    <span class="text-slate-200 capitalize" x-text="s.type"></span>
-                                                </div>
-                                            </td>
-                                            <td class="p-4 text-slate-400" x-text="s.location || '-'"></td>
-                                            <td class="p-4 text-right font-mono font-bold" :class="s.profit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="formatMoney(s.profit)"></td>
-                                            <td class="p-4 text-center">
-                                                <button @click="deleteSession(s.id)" class="w-8 h-8 rounded flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100">
-                                                    <i class="fa-solid fa-trash text-xs"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="filteredSessions.length === 0">
+                                <td colspan="8" class="p-12 text-center text-slate-500">Nenhum registro encontrado.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
         <!-- VIEW: GRÁFICOS -->
         <div x-show="activeTab === 'charts'" class="space-y-6" x-cloak>
-            <h2 class="text-2xl font-bold text-white mb-4">Análise Detalhada</h2>
-            <div class="glass-card p-6 rounded-2xl relative h-[400px]">
-                <canvas id="mainChartEl"></canvas>
+            
+             <!-- Top Filters & Summary for Charts -->
+             <div class="glass-card p-4 rounded-2xl flex flex-wrap justify-between items-center gap-4">
+                <div class="flex gap-2">
+                     <select x-model="chartFilters.range" class="p-2 rounded-lg glass-input text-xs font-bold text-white">
+                         <option value="all">Todo o Período</option>
+                         <option value="year">Este Ano</option>
+                         <option value="90d">Últimos 90 Dias</option>
+                         <option value="30d">Últimos 30 Dias</option>
+                     </select>
+                     <select x-model="chartFilters.type" class="p-2 rounded-lg glass-input text-xs font-bold text-white">
+                         <option value="all">Todos os Jogos</option>
+                         <template x-for="gt in settings.gameTypes"><option :value="gt" x-text="gt"></option></template>
+                     </select>
+                </div>
+                <div class="flex gap-4 text-xs font-mono">
+                    <div class="flex flex-col items-end">
+                        <span class="text-slate-500">Lucro</span>
+                        <span class="font-bold text-emerald-400" x-text="formatMoney(chartStats.profit)"></span>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-slate-500">Volume</span>
+                        <span class="font-bold text-white" x-text="chartStats.volume"></span>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-slate-500">ROI</span>
+                        <span class="font-bold text-primary-400" x-text="chartStats.roi + '%'"></span>
+                    </div>
+                </div>
             </div>
+
+            <!-- Main Evolution Chart -->
+            <div class="glass-card p-6 rounded-2xl relative h-[400px]">
+                <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Evolução do Bankroll</h3>
+                <div class="h-[320px] w-full">
+                     <canvas id="mainChartEl"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis Grid -->
             <div class="grid md:grid-cols-2 gap-6">
+                <!-- Monthly Performance -->
                 <div class="glass-card p-6 rounded-2xl h-80">
-                    <h3 class="text-sm font-bold text-slate-400 mb-4">Volume Mensal</h3>
-                    <canvas id="volumeChartEl"></canvas>
+                    <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Performance Mensal</h3>
+                    <div class="h-60 w-full"><canvas id="monthlyChartEl"></canvas></div>
                 </div>
+
+                <!-- ROI Trend (New) -> Using Volume for now as placeholder, ideally separate ROI line -->
                 <div class="glass-card p-6 rounded-2xl h-80">
-                    <h3 class="text-sm font-bold text-slate-400 mb-4">Profit por Site</h3>
-                    <canvas id="locationChartEl"></canvas>
+                    <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Volume de Jogos</h3>
+                    <div class="h-60 w-full"><canvas id="volumeChartEl"></canvas></div>
                 </div>
+                
+                <!-- Profit by Location -->
+                <div class="glass-card p-6 rounded-2xl h-80">
+                    <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Lucro por Site</h3>
+                    <div class="h-60 w-full"><canvas id="locationChartEl"></canvas></div>
+                </div>
+
+                <!-- Profit by Day of Week -->
+                <div class="glass-card p-6 rounded-2xl h-80">
+                    <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Lucro por Dia da Semana</h3>
+                    <div class="h-60 w-full"><canvas id="dowChartEl"></canvas></div>
+                </div>
+            </div>
+            
+            <!-- Type Distribution -->
+            <div class="glass-card p-6 rounded-2xl">
+                 <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">Distribuição de Volume por Local</h3>
+                 <div class="h-60 w-full flex justify-center"><canvas id="typeDistChartEl"></canvas></div>
             </div>
         </div>
 
         <!-- VIEW: SETTINGS -->
-        <div x-show="activeTab === 'settings'" class="space-y-6 max-w-4xl mx-auto" x-cloak>
-            <h2 class="text-2xl font-bold text-white mb-4">Ajustes</h2>
+        <div x-show="activeTab === 'settings'" class="space-y-6 max-w-5xl mx-auto" x-cloak>
+            <h2 class="text-2xl font-bold text-white mb-4">Ajustes & Dados</h2>
             <div class="grid md:grid-cols-2 gap-6">
+                
+                <!-- Perfil -->
                 <div class="glass-card p-8 rounded-2xl space-y-6">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4">
-                        <i class="fa-solid fa-user-gear text-slate-400"></i> Perfil do Jogador
+                        <i class="fa-solid fa-user-gear text-slate-400"></i> Perfil
                     </h3>
                     <div class="space-y-4">
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase">Nome</label>
                             <input type="text" x-model="settings.playerName" @change="saveLocal()" class="w-full p-3 rounded-xl glass-input mt-1">
                         </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase">Bankroll Inicial ($)</label>
-                            <input type="number" step="0.01" x-model.number="settings.initialBankroll" @change="saveLocal()" class="w-full p-3 rounded-xl glass-input mt-1">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase">Start Bank ($)</label>
+                                <input type="number" step="0.01" x-model.number="settings.initialBankroll" @change="saveLocal()" class="w-full p-3 rounded-xl glass-input mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-red-400 uppercase">Stop Loss ($)</label>
+                                <input type="number" x-model.number="settings.dailyStopLoss" @change="saveLocal()" class="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-white mt-1">
+                            </div>
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-red-400 uppercase">Stop Loss Diário ($)</label>
-                            <input type="number" x-model.number="settings.dailyStopLoss" @change="saveLocal()" class="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-white mt-1">
+                            <label class="text-xs font-bold text-blue-400 uppercase">ID Sincronização</label>
+                            <input type="text" x-model="settings.syncId" @change="saveLocal(); location.reload()" class="w-full p-3 rounded-xl glass-input mt-1 border-blue-500/30">
+                            <p class="text-[10px] text-slate-500 mt-1">Use este mesmo ID em todos os seus dispositivos.</p>
                         </div>
                     </div>
                 </div>
                 
-                <div class="glass-card p-8 rounded-2xl space-y-6 flex flex-col">
+                <!-- Gestão de Locais e Jogos -->
+                <div class="glass-card p-8 rounded-2xl space-y-6">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4">
-                        <i class="fa-solid fa-cloud text-slate-400"></i> Sincronização
+                        <i class="fa-solid fa-list-check text-slate-400"></i> Gerenciar Opções
                     </h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase">ID de Sincronização</label>
-                            <div class="flex gap-2">
-                                <input type="text" x-model="settings.syncId" @change="saveLocal(); location.reload()" class="w-full p-3 rounded-xl glass-input mt-1">
-                            </div>
-                            <p class="text-[10px] text-slate-500 mt-1">Use este mesmo ID em outros dispositivos para sincronizar os dados.</p>
+                    
+                    <!-- Locais -->
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Locais / Sites</label>
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" x-model="newLocationInput" placeholder="Novo Local..." class="flex-1 p-2 rounded-lg glass-input text-sm" @keydown.enter.prevent="addLocation()">
+                            <button @click="addLocation()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded-lg"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="loc in settings.locations">
+                                <div class="tag-item px-3 py-1 rounded-full text-xs text-slate-300 flex items-center gap-2">
+                                    <span x-text="loc"></span>
+                                    <button @click="removeLocation(loc)" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-times"></i></button>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2 border-b border-white/5 pb-4 mt-4">
-                        <i class="fa-solid fa-database text-slate-400"></i> Gestão de Dados
-                    </h3>
-                    <div class="flex-grow space-y-4">
-                        <button @click="exportData()" class="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium flex items-center justify-center gap-2 transition-colors border border-white/5">
-                            <i class="fa-solid fa-download"></i> Backup (JSON)
-                        </button>
-                        <label class="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium flex items-center justify-center gap-2 transition-colors border border-white/5 cursor-pointer">
-                            <i class="fa-solid fa-upload"></i> Restaurar Dados
+                    <!-- Tipos de Jogo -->
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Tipos de Jogo</label>
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" x-model="newGameTypeInput" placeholder="Novo Tipo..." class="flex-1 p-2 rounded-lg glass-input text-sm" @keydown.enter.prevent="addGameType()">
+                            <button @click="addGameType()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded-lg"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="gt in settings.gameTypes">
+                                <div class="tag-item px-3 py-1 rounded-full text-xs text-slate-300 flex items-center gap-2">
+                                    <span x-text="gt"></span>
+                                    <button @click="removeGameType(gt)" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-times"></i></button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gestão de Arquivos -->
+                <div class="md:col-span-2 glass-card p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <h4 class="text-white font-bold">Backup e Reset</h4>
+                        <p class="text-xs text-slate-500">Exporte seus dados ou restaure um backup antigo.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="exportData()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-sm border border-white/5"><i class="fa-solid fa-download mr-1"></i> Backup</button>
+                        <label class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-sm border border-white/5 cursor-pointer">
+                            <i class="fa-solid fa-upload mr-1"></i> Restaurar
                             <input type="file" @change="importData($event)" class="hidden" accept=".json">
                         </label>
+                        <button @click="resetAll()" class="px-4 py-2 rounded-lg bg-red-900/20 hover:bg-red-900/40 text-red-400 text-sm border border-red-500/20">Reset</button>
                     </div>
-                    <button @click="resetAll()" class="text-xs text-red-500 hover:text-red-400 hover:underline mt-auto text-center w-full">
-                        Resetar Fábrica (Apagar Tudo)
-                    </button>
                 </div>
             </div>
         </div>
